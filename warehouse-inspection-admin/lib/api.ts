@@ -84,7 +84,7 @@ export async function createInspectionWithAnswers(payload: {
   const { data } = await api.post(`/api/inspections`, payload)
   return data
 }
-
+//
 // export async function uploadEvidence(inspectionId: number, file: File): Promise<any> {
 //   const form = new FormData()
 //   form.append("file", file)
