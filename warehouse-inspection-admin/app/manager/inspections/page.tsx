@@ -172,8 +172,8 @@ export default function ManagerInspectionsPage() {
           )}
         </ModernCardContent>
       </ModernCard>
+      {/* The Comeback */}
 
-      {/* Review is handled on a dedicated page; dialog removed */}
 
       <ZoomDialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
         <ZoomDialogContent className="max-w-4xl">
