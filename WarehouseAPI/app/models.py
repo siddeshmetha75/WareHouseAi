@@ -2,7 +2,7 @@ from typing import Optional
 import datetime
 import decimal
 
-from sqlalchemy import DECIMAL, DateTime, Float, ForeignKeyConstraint, Index, Integer, String, TIMESTAMP, Text, text
+from sqlalchemy import DECIMAL, DateTime, Enum, Float, ForeignKeyConstraint, Index, Integer, String, TIMESTAMP, Text, text
 from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -21,6 +21,8 @@ class Commoditymaster(Base):
     CreatedAt: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     Category: Mapped[Optional[str]] = mapped_column(String(45))
 
+    commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='commoditymaster')
+    crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='commoditymaster')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='commoditymaster')
 
 
@@ -32,7 +34,18 @@ class Questions(Base):
     category: Mapped[Optional[str]] = mapped_column(String(100))
     risk_weight: Mapped[Optional[float]] = mapped_column(Float, server_default=text("'1'"))
 
+    evidence: Mapped[list['Evidence']] = relationship('Evidence', back_populates='question')
     inspection_answers: Mapped[list['InspectionAnswers']] = relationship('InspectionAnswers', back_populates='question')
+
+
+class Seasons(Base):
+    __tablename__ = 'seasons'
+
+    IdSeason: Mapped[int] = mapped_column(Integer, primary_key=True)
+    Season_Name: Mapped[str] = mapped_column(Enum('Rabi', 'Kharif', 'Zaid'), nullable=False)
+
+    commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='seasons')
+    crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='seasons')
 
 
 class Users(Base):
@@ -61,12 +74,47 @@ class Warehouses(Base):
     Capacity: Mapped[Optional[int]] = mapped_column(Integer)
     Latitude: Mapped[Optional[decimal.Decimal]] = mapped_column(DECIMAL(10, 6))
     Longitude: Mapped[Optional[decimal.Decimal]] = mapped_column(DECIMAL(10, 6))
+    Inventory: Mapped[Optional[str]] = mapped_column(String(45))
 
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='warehouses')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Warehouse')
 
 
-    # removed deprecated inspector_inspectionform relationship
+class CommoditySeason(Base):
+    __tablename__ = 'commodity_season'
+    __table_args__ = (
+        ForeignKeyConstraint(['Commodity_Id'], ['commoditymaster.IdCommodity'], name='commodity_season_ibfk_1'),
+        ForeignKeyConstraint(['Season_Id'], ['seasons.IdSeason'], name='commodity_season_ibfk_2'),
+        Index('Commodity_Id', 'Commodity_Id'),
+        Index('Season_Id', 'Season_Id')
+    )
+
+    Id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    Commodity_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    Season_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    commoditymaster: Mapped['Commoditymaster'] = relationship('Commoditymaster', back_populates='commodity_season')
+    seasons: Mapped['Seasons'] = relationship('Seasons', back_populates='commodity_season')
+
+
+class CropYear(Base):
+    __tablename__ = 'crop_year'
+    __table_args__ = (
+        ForeignKeyConstraint(['Commodity_Id'], ['commoditymaster.IdCommodity'], name='fk_IdCommodityMaster_CommodityId'),
+        ForeignKeyConstraint(['Season_Id'], ['seasons.IdSeason'], name='fk_IdSeason_SeasonId'),
+        Index('fk_IdCommodityMaster_CommodityId_idx', 'Commodity_Id'),
+        Index('fk_IdSeason_SeasonId_idx', 'Season_Id')
+    )
+
+    IdCrop_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    Season_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    Commodity_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    CropYearName: Mapped[Optional[str]] = mapped_column(String(45))
+    Created_At: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
+
+    commoditymaster: Mapped['Commoditymaster'] = relationship('Commoditymaster', back_populates='crop_year')
+    seasons: Mapped['Seasons'] = relationship('Seasons', back_populates='crop_year')
 
 
 class Managers(Base):
@@ -117,6 +165,7 @@ class Inspections(Base):
     users: Mapped['Users'] = relationship('Users', back_populates='inspections')
     managers: Mapped['Managers'] = relationship('Managers', back_populates='inspections')
     warehouses: Mapped['Warehouses'] = relationship('Warehouses', back_populates='inspections')
+    evidence: Mapped[list['Evidence']] = relationship('Evidence', back_populates='inspection')
     inspection_answers: Mapped[list['InspectionAnswers']] = relationship('InspectionAnswers', back_populates='inspection')
 
 
@@ -141,6 +190,26 @@ class UserWarehouseMap(Base):
     Warehouse: Mapped['Warehouses'] = relationship('Warehouses', back_populates='user_warehouse_map')
 
 
+class Evidence(Base):
+    __tablename__ = 'evidence'
+    __table_args__ = (
+        ForeignKeyConstraint(['inspection_id'], ['inspections.Id_Inspections'], name='fk_evidence_inspection'),
+        ForeignKeyConstraint(['question_id'], ['questions.id'], name='fk_evidence_question'),
+        Index('fk_evidence_question', 'question_id'),
+        Index('idx_evidence_inspection_id', 'inspection_id')
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    inspection_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    question_id: Mapped[Optional[int]] = mapped_column(Integer)
+    file_type: Mapped[Optional[str]] = mapped_column(String(100))
+    uploaded_at: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+
+    inspection: Mapped['Inspections'] = relationship('Inspections', back_populates='evidence')
+    question: Mapped[Optional['Questions']] = relationship('Questions', back_populates='evidence')
+
+
 class InspectionAnswers(Base):
     __tablename__ = 'inspection_answers'
     __table_args__ = (
@@ -158,20 +227,3 @@ class InspectionAnswers(Base):
 
     inspection: Mapped['Inspections'] = relationship('Inspections', back_populates='inspection_answers')
     question: Mapped['Questions'] = relationship('Questions', back_populates='inspection_answers')
-
-
-class Evidence(Base):
-    __tablename__ = 'evidence'
-    __table_args__ = (
-        ForeignKeyConstraint(['inspection_id'], ['inspections.Id_Inspections'], ondelete='CASCADE', name='evidence_ibfk_1'),
-        Index('inspection_id', 'inspection_id')
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    inspection_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    question_id: Mapped[Optional[int]] = mapped_column(Integer)
-    file_path: Mapped[str] = mapped_column(String(500))
-    file_type: Mapped[Optional[str]] = mapped_column(String(50))
-    uploaded_at: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
-
-    inspection: Mapped['Inspections'] = relationship('Inspections')

@@ -14,6 +14,8 @@ from . import crud, schemas
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict
 from fastapi.staticfiles import StaticFiles
+from .routers import crop_year as crop_year_router
+from .routers import season as season_router
 import os
 
 
@@ -37,6 +39,8 @@ app.include_router(warehouse_router.router)
 app.include_router(users_router.router)
 app.include_router(commodities_router.router)
 app.include_router(inspectionsDetails_router.router)
+app.include_router(crop_year_router.router)
+app.include_router(season_router.router)
 
 app.include_router(inspector_router.router)
 app.include_router(manager_router.router)
