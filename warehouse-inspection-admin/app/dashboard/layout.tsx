@@ -9,7 +9,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRoles={["Admin", "Manager"]} unauthorizedPath="/inspector/dashboard">
       <div className="flex min-h-screen bg-gray-50">
         <div className="hidden md:flex md:w-64 md:flex-col">
           <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-blue-700 border-r">

@@ -79,16 +79,12 @@ export async function createInspectionWithAnswers(payload: {
   warehouse_id: number
   commodity_id: number
   inspector_id: number
+  Season_Id?: number
   answers: Array<{ question_id: number; answer?: string; remarks?: string }>
 }): Promise<{ inspection_id: number; saved_answers: number }> {
   const { data } = await api.post(`/api/inspections`, payload)
   return data
 }
-//
-// export async function uploadEvidence(inspectionId: number, file: File): Promise<any> {
-//   const form = new FormData()
-//   form.append("file", file)
-//   const { data } = await api.post(`/api/inspections/${inspectionId}/evidence`, form, { headers: { "Content-Type": "multipart/form-data" } })
 //   return data
 // }
 export async function uploadEvidence(inspectionId: number, file: File, questionId: number) {

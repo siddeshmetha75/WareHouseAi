@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { getQuestions, createInspectionWithAnswers, uploadEvidence } from "@/lib/api"
+import { getQuestions, createInspectionWithAnswers, uploadEvidence, type ApiQuestion } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -25,7 +25,7 @@ export default function InspectionFormPage() {
   const warehouseId = Number(params.id)
   const commodityId = Number(params.commodityId)
 
-  const { data: questions = [], isLoading } = useQuery({ queryKey: ["questions"], queryFn: getQuestions })
+  const { data: questions = [], isLoading } = useQuery<ApiQuestion[]>({ queryKey: ["questions"], queryFn: getQuestions })
 
   const [answers, setAnswers] = useState<Record<number, AnswerDraft>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -85,11 +85,13 @@ export default function InspectionFormPage() {
     try {
       const inspectorId = Number(localStorage.getItem("id"))
       if (!inspectorId) throw new Error("Inspector not logged in")
+      const seasonId = Number(localStorage.getItem("Season_Id") || 0)
       const answerList = Object.entries(answers).map(([qid, a]) => ({ question_id: Number(qid), answer: a.answer || "", remarks: a.remarks || "" }))
       const { inspection_id } = await createInspectionWithAnswers({
         warehouse_id: warehouseId,
         commodity_id: commodityId,
         inspector_id: inspectorId,
+        Season_Id: seasonId,
         answers: answerList,
       })
       // upload evidence files serially to simplify

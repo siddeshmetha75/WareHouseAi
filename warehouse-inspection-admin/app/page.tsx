@@ -12,7 +12,12 @@ export default function HomePage() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.push("/dashboard")
+        const role = (user.role || "").trim().toLowerCase()
+        if (role === "inspector") {
+          router.push("/inspector/dashboard")
+        } else {
+          router.push("/dashboard")
+        }
       } else {
         router.push("/login")
       }
