@@ -1,6 +1,6 @@
  "use client"
 
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { getQuestions, createInspectionWithAnswers, uploadEvidence, type ApiQuestion } from "@/lib/api"
@@ -22,8 +22,10 @@ interface AnswerDraft {
 export default function InspectionFormPage() {
   const params = useParams() as { id: string; commodityId: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const warehouseId = Number(params.id)
   const commodityId = Number(params.commodityId)
+  const seasonIdFromUrl = Number(searchParams.get("season") || 0)
 
   const { data: questions = [], isLoading } = useQuery<ApiQuestion[]>({ queryKey: ["questions"], queryFn: getQuestions })
 
@@ -85,7 +87,9 @@ export default function InspectionFormPage() {
     try {
       const inspectorId = Number(localStorage.getItem("id"))
       if (!inspectorId) throw new Error("Inspector not logged in")
-      const seasonId = Number(localStorage.getItem("Season_Id") || 0)
+      const seasonId = seasonIdFromUrl || Number(localStorage.getItem("Season_Id") || 0)
+      // persist the chosen season for future defaults
+      try { if (seasonId) localStorage.setItem("Season_Id", String(seasonId)) } catch {}
       const answerList = Object.entries(answers).map(([qid, a]) => ({ question_id: Number(qid), answer: a.answer || "", remarks: a.remarks || "" }))
       const { inspection_id } = await createInspectionWithAnswers({
         warehouse_id: warehouseId,

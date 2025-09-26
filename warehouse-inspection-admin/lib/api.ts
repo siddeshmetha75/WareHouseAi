@@ -94,6 +94,27 @@ export async function uploadEvidence(inspectionId: number, file: File, questionI
   return api.post(`/api/inspections/${inspectionId}/evidence`, formData);
 }
 
+// Commodity-Warehouse mappings for inspector and warehouse
+export interface ApiCommodityWarehouseMap {
+  Id_CommodityWarehouseMap: number
+  WarehouseId: number
+  ManagerId: number
+  InspectorId: number
+  CommodityId: number
+  SeasonId: number
+  Is_Active: number
+  CommodityName: string
+  SeasonName: string
+}
+
+export async function getCommodityWarehouseMappings(warehouseId: number, inspectorId: number): Promise<ApiCommodityWarehouseMap[]> {
+  const { data } = await api.get<ApiCommodityWarehouseMap[]>(
+    "/commodity-warehouse-map/filter/by-warehouse-inspector",
+    { params: { warehouseId, inspectorId } }
+  )
+  return data
+}
+
 export interface ApiEntityRef { id?: number | null; name?: string | null }
 export interface ApiInspectorRef { id?: number | null; username?: string | null; full_name?: string | null }
 export interface ApiInspectionSummary {
