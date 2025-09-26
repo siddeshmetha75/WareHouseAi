@@ -2,25 +2,20 @@
 import { Dialog as ZoomDialog, DialogContent as ZoomDialogContent } from "@/components/ui/dialog"
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { listInspections, reviewInspection, getInspectionDetail } from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+import { listInspections } from "@/lib/api"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
-import { ModernTable, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell, ShimmerTableComponent } from "@/components/ui/modern-table"
+import { ShimmerTableComponent } from "@/components/ui/modern-table"
 import { ModernButton } from "@/components/ui/modern-button"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { EvidenceDisplay } from "@/components/ui/evidence-display"
-import { ShimmerInspectionDetail } from "@/components/ui/shimmer"
-import { Clock, Eye, CheckCircle, XCircle, Calendar } from "lucide-react"
+import { Clock, Eye, Calendar, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 export default function ManagerInspectionsPage() {
-  const qc = useQueryClient()
   const router = useRouter()
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["manager-inspections"],
     queryFn: () => listInspections({ pending_only: true }),
   })
@@ -64,19 +59,35 @@ export default function ManagerInspectionsPage() {
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
-      <div>
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Pending Reviews</h1>
         <p className="text-gray-600 mt-2">Review and approve pending inspections</p>
       </div>
 
-      <ModernCard>
-        <ModernCardHeader>
-          <ModernCardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Inspections awaiting review
-          </ModernCardTitle>
-        </ModernCardHeader>
-        <ModernCardContent>
+      <div className="max-w-7xl mx-auto">
+        <ModernCard>
+          <ModernCardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <ModernCardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Inspections awaiting review
+              </ModernCardTitle>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">Total: {rows.length}</span>
+                <ModernButton
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                  Refresh
+                </ModernButton>
+              </div>
+            </div>
+          </ModernCardHeader>
+          <ModernCardContent>
           {/* Toolbar */}
           {!isLoading && (
             <div className="mb-4 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
@@ -170,8 +181,9 @@ export default function ManagerInspectionsPage() {
               <p>No pending inspections to review.</p>
             </div>
           )}
-        </ModernCardContent>
-      </ModernCard>
+          </ModernCardContent>
+        </ModernCard>
+      </div>
       {/* The Comeback */}
 
 
