@@ -78,6 +78,9 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
               <span className="text-muted-foreground">Commodity:</span> {inspection.commodity?.name ?? "—"}
             </div>
             <div>
+              <span className="text-muted-foreground">Season:</span> {inspection.SeasonName ?? "—"}
+            </div>
+            <div>
               <span className="text-muted-foreground">Inspector:</span> {inspection.inspector?.full_name || inspection.inspector?.username || "—"}
             </div>
             <div>
@@ -92,7 +95,6 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
           </CardContent>
         </Card>
       </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Responses</CardTitle>
@@ -107,7 +109,7 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
                 {a.remarks && <p>Remarks: {a.remarks}</p>}
                 {a.evidence && a.evidence.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-3">
-                    {a.evidence.map((ev) => (
+                    {a.evidence.map((ev: any) => (
                       <div key={ev.id} className="w-24 h-24">
                         {ev.file_type?.startsWith("image/") ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -138,7 +140,7 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
               <div className="rounded-xl shadow p-4">
                 <p className="font-semibold mb-2">Evidence</p>
                 <div className="flex flex-wrap gap-3">
-                  {evidence.map((e) => (
+                  {evidence.map((e: any) => (
                     <div key={e.id} className="w-24 h-24">
                       {e.file_type?.startsWith("image/") ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -153,7 +155,6 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
                           type="button"
                           onClick={() => openPreview("video", e.file_url, getNameFromUrl(e.file_url))}
                           className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50 hover:bg-blue-50 transition-colors"
-                          title={getNameFromUrl(e.file_url) || "Video"}
                         >
                           <Play className="h-5 w-5 text-blue-600" />
                           <span className="truncate px-1">Video</span>

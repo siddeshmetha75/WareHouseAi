@@ -32,6 +32,17 @@ export default function InspectorInspectionsPage() {
   const [status, setStatus] = useState<"All" | "Pending" | "Accepted" | "Rejected">("All")
   const [fromDate, setFromDate] = useState<string>("")
   const [toDate, setToDate] = useState<string>("")
+  const [season, setSeason] = useState<string>("All")
+
+  // Build distinct season options from API rows
+  const seasonOptions = useMemo(() => {
+    const set = new Set<string>()
+    ;(rows || []).forEach((r: any) => {
+      const s = r.SeasonName || r.season?.name || r.Season?.Name || r.season_name
+      if (s && typeof s === "string" && s.trim()) set.add(s)
+    })
+    return Array.from(set)
+  }, [rows])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -42,6 +53,8 @@ export default function InspectorInspectionsPage() {
           (r.Manager_Remarks || "").toLowerCase().includes(q)
         : true
       const matchesStatus = status === "All" ? true : (r.Status || "").toLowerCase() === status.toLowerCase()
+      const sName = r.SeasonName || r.season?.name || r.Season?.Name || r.season_name || ""
+      const matchesSeason = season === "All" ? true : String(sName) === season
       // Date filtering
       let matchesDate = true
       if (fromDate || toDate) {
@@ -63,9 +76,9 @@ export default function InspectorInspectionsPage() {
           }
         }
       }
-      return matchesQuery && matchesStatus && matchesDate
+      return matchesQuery && matchesStatus && matchesSeason && matchesDate
     })
-  }, [rows, query, status, fromDate, toDate])
+  }, [rows, query, status, season, fromDate, toDate])
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
@@ -106,6 +119,19 @@ export default function InspectorInspectionsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="w-full sm:w-48">
+                <Select value={season} onValueChange={(v: any) => setSeason(v)}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Season" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All seasons</SelectItem>
+                    {seasonOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
                 <input
                   type="date"
@@ -131,9 +157,10 @@ export default function InspectorInspectionsPage() {
                   setStatus("All");
                   setFromDate("");
                   setToDate("");
+                  setSeason("All");
                 }}
                 className="bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
-                disabled={!query && status === "All" && !fromDate && !toDate}
+                disabled={!query && status === "All" && season === "All" && !fromDate && !toDate}
               >
                 Clear
               </ModernButton>
@@ -157,6 +184,10 @@ export default function InspectorInspectionsPage() {
                     <div>
                       <div className="text-xs uppercase text-slate-500">Commodity</div>
                       <div>{i.commodity?.name ?? "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase text-slate-500">Season</div>
+                      <div>{i.SeasonName || i.season?.name || i.Season?.Name || i.season_name || "—"}</div>
                     </div>
                     <div>
                       <div className="text-xs uppercase text-slate-500">Status</div>

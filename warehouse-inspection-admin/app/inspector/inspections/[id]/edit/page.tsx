@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail, uploadEvidence, updateInspectionDetails } from "@/lib/api"
+import { getInspectionDetail, uploadEvidence, updateInspectionDetails, getQuestions, type ApiQuestion } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Play, Upload } from "lucide-react"
 
 interface AnswerDraft {
@@ -28,6 +29,11 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
     queryKey: ["inspection-detail", id],
     queryFn: () => getInspectionDetail(id),
     enabled: isFinite(id) && id > 0,
+  })
+
+  const { data: allQuestions = [], isLoading: isLoadingQuestions } = useQuery<ApiQuestion[]>({
+    queryKey: ["questions"],
+    queryFn: getQuestions,
   })
 
   const [answers, setAnswers] = useState<Record<number, AnswerDraft>>({})
@@ -97,9 +103,37 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
 
   const grouped = useMemo(() => {
     if (!data) return {}
-    // If there is category info in future, group by it. For now single group
-    return { General: data.answers }
-  }, [data])
+    // Build a map of existing answers by question_id
+    const byId = new Map<number, any>()
+    data.answers.forEach((a) => byId.set(a.question_id, a))
+    // Map question id -> category
+    const catMap = new Map<number, string | null | undefined>()
+    ;(allQuestions || []).forEach(q => catMap.set(q.id, (q as any).category))
+
+    // Merge all questions so unanswered appear too and attach category
+    const merged = (allQuestions || []).map((q) => {
+      const found = byId.get(q.id)
+      const base = found
+        ? found
+        : {
+            question_id: q.id,
+            question_text: q.text,
+            answer: "",
+            remarks: "",
+            evidence: [],
+          }
+      return { ...base, category: (q as any).category || "General" }
+    })
+
+    // Group by category
+    const groups: Record<string, any[]> = {}
+    merged.forEach(item => {
+      const key = (item.category || "General").toString()
+      if (!groups[key]) groups[key] = []
+      groups[key].push(item)
+    })
+    return groups
+  }, [data, allQuestions])
 
   return (
     <div className="space-y-6 p-6">
@@ -132,136 +166,151 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                     answer: a?.answer || "",
                     remarks: a?.remarks || "",
                   }))
-                  await updateInspectionDetails(id, { status: "Pending", answers: answerList })
-                  setMsg("Inspection updated as Pending.")
+                  // Build payload to align with backend schema; include IDs when available
+                  const insp = data.inspection
+                  const payload: any = {
+                    Status: "Pending",
+                    Data: JSON.stringify(answerList),
+                  }
+                  if (insp?.warehouse?.id) payload.Warehouse_Id = insp.warehouse.id
+                  if (insp?.inspector?.id) payload.Inspector_Id = insp.inspector.id
+                  if (insp?.commodity?.id) payload.Commodity_Id = insp.commodity.id
+                  if (insp?.Season_Id) payload.Season_Id = insp.Season_Id
+                  await updateInspectionDetails(id, payload)
                 } catch (e: any) {
                   setErr(e?.message || "Failed to update inspection")
                 }
               }}
             >
-              {Object.entries(grouped).map(([groupName, items]) => (
-                <div key={groupName} className="space-y-4">
-                  <div className="text-sm font-semibold text-gray-700">{groupName}</div>
-                  <div className="space-y-6">
-                    {(items as any[]).map((qa: any) => (
-                      <div
-                        key={qa.question_id}
-                        ref={(el) => {
-                          qRefs.current[qa.question_id] = el
-                        }}
-                        className="border p-4 rounded-md space-y-3"
-                      >
-                        <div className="font-medium">{qa.question_text}</div>
-                        <div>
-                          <Label className="mb-2 block">Response</Label>
-                          <RadioGroup
-                            value={answers[qa.question_id]?.answer || ""}
-                            onValueChange={(v) => handleAnswer(qa.question_id, { answer: v })}
-                            className="flex items-center gap-6"
+              <Accordion type="multiple" className="w-full">
+                {Object.entries(grouped).map(([groupName, items]) => (
+                  <AccordionItem key={groupName} value={groupName}>
+                    <AccordionTrigger className="text-left">{groupName}</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-6">
+                        {(items as any[]).map((qa: any) => (
+                          <div
+                            key={qa.question_id}
+                            ref={(el) => {
+                              qRefs.current[qa.question_id] = el
+                            }}
+                            className="border p-4 rounded-md space-y-3"
                           >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="Yes" id={`yes-${qa.question_id}`} />
-                              <Label htmlFor={`yes-${qa.question_id}`}>Yes</Label>
+                            <div className="font-medium">{qa.question_text}</div>
+                            <div>
+                              <Label className="mb-2 block">Response</Label>
+                              <RadioGroup
+                                value={answers[qa.question_id]?.answer || ""}
+                                onValueChange={(v) => handleAnswer(qa.question_id, { answer: v })}
+                                className="flex items-center gap-6"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="Yes" id={`yes-${qa.question_id}`} />
+                                  <Label htmlFor={`yes-${qa.question_id}`}>Yes</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="No" id={`no-${qa.question_id}`} />
+                                  <Label htmlFor={`no-${qa.question_id}`}>No</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="NA" id={`na-${qa.question_id}`} />
+                                  <Label htmlFor={`na-${qa.question_id}`}>N/A</Label>
+                                </div>
+                              </RadioGroup>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="No" id={`no-${qa.question_id}`} />
-                              <Label htmlFor={`no-${qa.question_id}`}>No</Label>
+                            <div>
+                              <Label className="mb-2 block">Remarks</Label>
+                              <Textarea
+                                value={answers[qa.question_id]?.remarks || ""}
+                                onChange={(e) => handleAnswer(qa.question_id, { remarks: e.target.value })}
+                                placeholder="Enter remarks"
+                              />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="NA" id={`na-${qa.question_id}`} />
-                              <Label htmlFor={`na-${qa.question_id}`}>N/A</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-                        <div>
-                          <Label className="mb-2 block">Remarks</Label>
-                          <Textarea
-                            value={answers[qa.question_id]?.remarks || ""}
-                            onChange={(e) => handleAnswer(qa.question_id, { remarks: e.target.value })}
-                            placeholder="Enter remarks"
-                          />
-                        </div>
-
-                        {/* Existing evidence list */}
-                        {qa.evidence && qa.evidence.length > 0 && (
-                          <div>
-                            <Label className="mb-2 block">Existing Evidence</Label>
-                            <div className="mt-2 flex flex-wrap gap-3">
-                              {qa.evidence.map((ev: any) => {
-                                const type = (ev.file_type || "").toLowerCase()
-                                const isImage = type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(ev.file_url)
-                                const isVideo = type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv)$/i.test(ev.file_url)
-                                return (
-                                  <div key={ev.id} className="relative w-24 h-24">
-                                    {isImage ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <a href={ev.file_url} target="_blank" rel="noreferrer">
-                                        <img src={ev.file_url} alt="evidence" className="w-24 h-24 object-cover rounded" />
-                                      </a>
-                                    ) : isVideo ? (
-                                      <a href={ev.file_url} target="_blank" rel="noreferrer" title="Open video" className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50 hover:bg-blue-50">
-                                        <Play className="h-5 w-5 text-blue-600" />
-                                        <span className="truncate px-1">Video</span>
-                                      </a>
-                                    ) : (
-                                      <a href={ev.file_url} target="_blank" rel="noreferrer" className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50 hover:bg-blue-50">
-                                        <span className="truncate px-1">Open</span>
-                                      </a>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Add more evidence */}
-                        <div>
-                          <Label className="mb-2 block">Add Evidence</Label>
-                          <input
-                            id={`file-${qa.question_id}`}
-                            type="file"
-                            accept="image/*,video/*"
-                            multiple
-                            onChange={(e) => addFiles(qa.question_id, e.target.files)}
-                            className="hidden"
-                          />
-                          <div className="flex items-center gap-2">
-                            <Button type="button" variant="outline" onClick={() => document.getElementById(`file-${qa.question_id}`)?.click()} className="bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">
-                              Add files
-                            </Button>
-                            <Button type="button" onClick={() => uploadNewEvidence(qa.question_id)} disabled={!answers[qa.question_id]?.files?.length}>
-                              <Upload className="h-4 w-4 mr-2" /> Upload
-                            </Button>
-                          </div>
-                          {answers[qa.question_id]?.files && answers[qa.question_id]!.files!.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-3">
-                              {answers[qa.question_id]!.files!.map((f, idx) => {
-                                const isImage = f.type.startsWith("image/")
-                                const blobUrl = URL.createObjectURL(f)
-                                return (
-                                  <div key={idx} className="relative w-24 h-24">
-                                    {isImage ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={blobUrl} alt={f.name} className="w-24 h-24 object-cover rounded" />
-                                    ) : (
-                                      <div className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50">
-                                        <Play className="h-5 w-5 text-blue-600" />
-                                        <span className="truncate px-1">Video</span>
+                            {qa.manager_remarks || qa.Manager_Remarks || qa.manager_remark ? (
+                              <div className="text-sm text-gray-600">
+                                <span className="text-muted-foreground">Manager Remark: </span>
+                                {qa.manager_remarks || qa.Manager_Remarks || qa.manager_remark}
+                              </div>
+                            ) : null}
+                            {qa.evidence && qa.evidence.length > 0 && (
+                              <div>
+                                <Label className="mb-2 block">Existing Evidence</Label>
+                                <div className="mt-2 flex flex-wrap gap-3">
+                                  {qa.evidence.map((ev: any) => {
+                                    const type = (ev.file_type || "").toLowerCase()
+                                    const isImage = type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(ev.file_url)
+                                    const isVideo = type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv)$/i.test(ev.file_url)
+                                    return (
+                                      <div key={ev.id} className="relative w-24 h-24">
+                                        {isImage ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <a href={ev.file_url} target="_blank" rel="noreferrer">
+                                            <img src={ev.file_url} alt="evidence" className="w-24 h-24 object-cover rounded" />
+                                          </a>
+                                        ) : isVideo ? (
+                                          <a href={ev.file_url} target="_blank" rel="noreferrer" title="Open video" className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50 hover:bg-blue-50">
+                                            <Play className="h-5 w-5 text-blue-600" />
+                                            <span className="truncate px-1">Video</span>
+                                          </a>
+                                        ) : (
+                                          <a href={ev.file_url} target="_blank" rel="noreferrer" className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50 hover:bg-blue-50">
+                                            <span className="truncate px-1">Open</span>
+                                          </a>
+                                        )}
                                       </div>
-                                    )}
-                                    <button type="button" onClick={() => removeFile(qa.question_id, idx)} aria-label={`Remove ${f.name}`} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow">×</button>
-                                  </div>
-                                )
-                              })}
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <Label className="mb-2 block">Add Evidence</Label>
+                              <input
+                                id={`file-${qa.question_id}`}
+                                type="file"
+                                accept="image/*,video/*"
+                                multiple
+                                onChange={(e) => addFiles(qa.question_id, e.target.files)}
+                                className="hidden"
+                              />
+                              <div className="flex items-center gap-2">
+                                <Button type="button" variant="outline" onClick={() => document.getElementById(`file-${qa.question_id}`)?.click()} className="bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">
+                                  Add files
+                                </Button>
+                                <Button type="button" onClick={() => uploadNewEvidence(qa.question_id)} disabled={!answers[qa.question_id]?.files?.length}>
+                                  <Upload className="h-4 w-4 mr-2" /> Upload
+                                </Button>
+                              </div>
+                              {answers[qa.question_id]?.files && answers[qa.question_id]!.files!.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-3">
+                                  {answers[qa.question_id]!.files!.map((f, idx) => {
+                                    const isImage = f.type.startsWith("image/")
+                                    const blobUrl = URL.createObjectURL(f)
+                                    return (
+                                      <div key={idx} className="relative w-24 h-24">
+                                        {isImage ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={blobUrl} alt={f.name} className="w-24 h-24 object-cover rounded" />
+                                        ) : (
+                                          <div className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50">
+                                            <Play className="h-5 w-5 text-blue-600" />
+                                            <span className="truncate px-1">Video</span>
+                                          </div>
+                                        )}
+                                        <button type="button" onClick={() => removeFile(qa.question_id, idx)} aria-label={`Remove ${f.name}`} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow">×</button>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
 
               {err && (
                 <Alert variant="destructive"><AlertDescription>{err}</AlertDescription></Alert>

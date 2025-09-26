@@ -143,6 +143,8 @@ export async function getInspectionDetail(inspectionId: number) {
       inspector?: ApiInspectorRef | null
       status: "Pending" | "Accepted" | "Rejected"
       manager_remarks?: string | null
+      Season_Id?: number | null
+      SeasonName?: string | null
     }
     answers: Array<{
       question_id: number
@@ -166,10 +168,7 @@ export async function reviewInspection(
 // Update inspection details (answers/remarks/status) for editing flow
 export async function updateInspectionDetails(
   inspectionId: number,
-  payload: {
-    status: string
-    answers: Array<{ question_id: number; answer?: string; remarks?: string }>
-  }
+  payload: any
 ) {
   const { data } = await api.put(`/inspectionsDetails/${inspectionId}`, payload)
   return data
