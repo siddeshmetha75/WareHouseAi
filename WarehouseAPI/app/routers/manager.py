@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import SessionLocal
-from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence
+from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons
 from ..schemas.inspection import ApproveRequest
 
 router = APIRouter(prefix="/api", tags=["Manager"])
@@ -18,7 +18,12 @@ def get_db():
 
 
 @router.get("/inspections")
-def list_inspections(pending_only: bool = False, inspector_id: Optional[int] = None, status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_inspections(
+    pending_only: bool = False,
+    inspector_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     q = db.query(Inspections)
     if pending_only:
         q = q.filter(Inspections.Status == "Pending")
@@ -28,13 +33,22 @@ def list_inspections(pending_only: bool = False, inspector_id: Optional[int] = N
         # Support comma-separated status values
         status_list = [s.strip() for s in status.split(",")]
         q = q.filter(Inspections.Status.in_(status_list))
+
     rows = q.order_by(Inspections.Created_At.desc()).all()
-    # Resolve names for list
+
     result = []
     for i in rows:
         wh = db.query(Warehouses).filter(Warehouses.Id_Warehouse == i.Warehouse_Id).first()
-        cm = db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == i.Commodity_Id).first() if i.Commodity_Id else None
+        cm = (
+            db.query(Commoditymaster)
+            .filter(Commoditymaster.IdCommodity == i.Commodity_Id)
+            .first()
+            if i.Commodity_Id
+            else None
+        )
         ins = db.query(Users).filter(Users.idusers == i.Inspector_Id).first()
+        season = db.query(Seasons).filter(Seasons.IdSeason == i.Season_Id).first() if i.Season_Id else None
+
         result.append({
             "Id_Inspections": i.Id_Inspections,
             "warehouse": {"id": wh.Id_Warehouse, "name": wh.Warehouse_Name} if wh else None,
@@ -48,8 +62,11 @@ def list_inspections(pending_only: bool = False, inspector_id: Optional[int] = N
             "Status": i.Status,
             "Remarks": i.Remarks,
             "Manager_Remarks": i.Manager_Remarks,
+            "Season_Id": i.Season_Id,
+            "SeasonName": season.Season_Name if season else None,
         })
     return result
+
 
 
 @router.get("/inspection-answers/{inspection_id}")
@@ -180,8 +197,14 @@ def get_inspection_detail(inspection_id: int, request: Request, db: Session = De
         else None
     )
     inspector = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
+    season = (
+        db.query(Seasons).filter(Seasons.IdSeason == entity.Season_Id).first()
+        if entity.Season_Id
+        else None
+    )
 
     base_url = str(request.base_url).rstrip('/')
+
     def to_file_url(path: str | None) -> str | None:
         if not path:
             return None
@@ -203,6 +226,8 @@ def get_inspection_detail(inspection_id: int, request: Request, db: Session = De
             },
             "status": entity.Status,
             "manager_remarks": entity.Manager_Remarks,
+            "Season_Id": entity.Season_Id,
+            "SeasonName": season.Season_Name if season else None,
         },
         "answers": [
             {
@@ -231,5 +256,6 @@ def get_inspection_detail(inspection_id: int, request: Request, db: Session = De
             for e in evidence_rows
         ],
     }
+
 
 
