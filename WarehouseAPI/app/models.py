@@ -35,9 +35,9 @@ class Questions(Base):
     category: Mapped[Optional[str]] = mapped_column(String(100))
     risk_weight: Mapped[Optional[float]] = mapped_column(Float, server_default=text("'1'"))
 
+    remark: Mapped[list['Remark']] = relationship('Remark', back_populates='questions')
     evidence: Mapped[list['Evidence']] = relationship('Evidence', back_populates='question')
     inspection_answers: Mapped[list['InspectionAnswers']] = relationship('InspectionAnswers', back_populates='question')
-    remark: Mapped[list['Remark']] = relationship('Remark', back_populates='questions')
 
 
 class Seasons(Base):
@@ -68,7 +68,6 @@ class Users(Base):
     managers: Mapped[list['Managers']] = relationship('Managers', back_populates='users')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='users')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='User')
-    remark: Mapped[list['Remark']] = relationship('Remark', back_populates='users')
 
 
 class Warehouses(Base):
@@ -171,6 +170,22 @@ class Managers(Base):
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Manager')
 
 
+class Remark(Base):
+    __tablename__ = 'remark'
+    __table_args__ = (
+        ForeignKeyConstraint(['Question_Id'], ['questions.id'], name='fk_questionId_IdQuestion'),
+        Index('fk_questionId_IdQuestion_idx', 'Question_Id')
+    )
+
+    Id_Remark: Mapped[int] = mapped_column(Integer, primary_key=True)
+    Question_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    Remarks: Mapped[Optional[str]] = mapped_column(String(45))
+    Status: Mapped[Optional[str]] = mapped_column(String(45))
+    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
+
+    questions: Mapped['Questions'] = relationship('Questions', back_populates='remark')
+
+
 class Inspections(Base):
     __tablename__ = 'inspections'
     __table_args__ = (
@@ -248,7 +263,6 @@ class Evidence(Base):
 
     inspection: Mapped['Inspections'] = relationship('Inspections', back_populates='evidence')
     question: Mapped[Optional['Questions']] = relationship('Questions', back_populates='evidence')
-    remark: Mapped[list['Remark']] = relationship('Remark', back_populates='evidence')
 
 
 class InspectionAnswers(Base):
@@ -268,32 +282,3 @@ class InspectionAnswers(Base):
 
     inspection: Mapped['Inspections'] = relationship('Inspections', back_populates='inspection_answers')
     question: Mapped['Questions'] = relationship('Questions', back_populates='inspection_answers')
-    remark: Mapped[list['Remark']] = relationship('Remark', back_populates='inspection_answers')
-
-
-class Remark(Base):
-    __tablename__ = 'remark'
-    __table_args__ = (
-        ForeignKeyConstraint(['Evidence_Id'], ['evidence.id'], name='fk_evidenceId_IdEvidence'),
-        ForeignKeyConstraint(['Manager_Id'], ['users.idusers'], name='fk_managerId_IdUser'),
-        ForeignKeyConstraint(['Question_Id'], ['questions.id'], name='fk_questionId_IdQuestion'),
-        ForeignKeyConstraint(['inspection_answer_Id'], ['inspection_answers.id'], name='fk_inspection_answer_id_idinsque'),
-        Index('fk_evidenceId_IdEvidence_idx', 'Evidence_Id'),
-        Index('fk_inspection_answer_id_idinsque_idx', 'inspection_answer_Id'),
-        Index('fk_managerId_IdUser_idx', 'Manager_Id'),
-        Index('fk_questionId_IdQuestion_idx', 'Question_Id')
-    )
-
-    Id_Remark: Mapped[int] = mapped_column(Integer, primary_key=True)
-    Manager_Id: Mapped[int] = mapped_column(Integer, nullable=False)
-    Question_Id: Mapped[int] = mapped_column(Integer, nullable=False)
-    Evidence_Id: Mapped[int] = mapped_column(Integer, nullable=False)
-    inspection_answer_Id: Mapped[int] = mapped_column(Integer, nullable=False)
-    Remarks: Mapped[Optional[str]] = mapped_column(String(45))
-    Condition: Mapped[Optional[str]] = mapped_column(String(45))
-    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
-
-    evidence: Mapped['Evidence'] = relationship('Evidence', back_populates='remark')
-    users: Mapped['Users'] = relationship('Users', back_populates='remark')
-    questions: Mapped['Questions'] = relationship('Questions', back_populates='remark')
-    inspection_answers: Mapped['InspectionAnswers'] = relationship('InspectionAnswers', back_populates='remark')
