@@ -8,6 +8,7 @@ class InspectionBase(BaseModel):
     Data: str
     Status: str
     Remarks: Optional[str] = None
+    Season_Id : int
 
 class InspectionCreate(InspectionBase):
     pass
@@ -17,11 +18,14 @@ class InspectionUpdate(BaseModel):
     Status: Optional[str] = None
     Remarks: Optional[str] = None
 
+# ...existing code...
+
 class InspectionResponse(InspectionBase):
     Id_Inspections: int
     Created_At: datetime
+    Season_Id: int
+    SeasonName: Optional[str] = None  # <-- Add this
 
-    
 class InspectionDetailsResponse(BaseModel):
     Id_Inspections: int
     Warehouse_Id: int
@@ -36,9 +40,13 @@ class InspectionDetailsResponse(BaseModel):
     Data: str
     Status: str
     Remarks: Optional[str] = None
+    Season_Id: int
+    SeasonName: Optional[str] = None  # <-- Add this
 
     class Config:
         from_attributes = True
+
+# ...existing code...
 
 
 class InspectionCreateRequest(BaseModel):
@@ -46,6 +54,7 @@ class InspectionCreateRequest(BaseModel):
     Manager_Id: int
     Commodity_Id: Optional[int] = None
     Remarks: Optional[str] = None
+    Season_Id : int
 
 
 class InspectionCreateResponse(BaseModel):
@@ -68,6 +77,7 @@ class InspectionWithAnswersCreate(BaseModel):
     warehouse_id: int
     commodity_id: int
     inspector_id: int
+    Season_Id: int
     answers: list[InspectionAnswerCreate]
 
     class Config:

@@ -71,6 +71,7 @@ def create_inspection(
         Manager_Id=mapping.Manager_id,
         Status="Pending",
         Commodity_Id=payload.commodity_id,
+        Season_Id=payload.Season_Id,
         Remarks=None,
     )
     db.add(entity)
@@ -118,36 +119,15 @@ def save_answers(
     return {"status": "success", "saved": len(records)}
 
 
+# ...existing code...
+
 @router.get("/inspections/{inspection_id}")
 def get_inspection_detail(inspection_id: int, request: Request, db: Session = Depends(get_db)):
     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Inspection not found")
 
-    answers = (
-        db.query(InspectionAnswers, Questions)
-        .join(Questions, Questions.id == InspectionAnswers.question_id)
-        .filter(InspectionAnswers.inspection_id == inspection_id)
-        .all()
-    )
-    evidence_rows = db.query(Evidence).filter(Evidence.inspection_id == inspection_id).all()
-
-    # Resolve human-readable names
-    warehouse = db.query(Warehouses).filter(Warehouses.Id_Warehouse == entity.Warehouse_Id).first()
-    commodity = (
-        db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first()
-        if entity.Commodity_Id is not None
-        else None
-    )
-    inspector = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
-
-    base_url = str(request.base_url).rstrip('/')
-    def to_file_url(path: str | None) -> str | None:
-        if not path:
-            return None
-        import os
-        file_name = os.path.basename(path)
-        return f"{base_url}/uploads/{file_name}"
+    # ...existing code...
 
     return {
         "inspection": {
@@ -163,35 +143,11 @@ def get_inspection_detail(inspection_id: int, request: Request, db: Session = De
             },
             "status": entity.Status,
             "manager_remarks": entity.Manager_Remarks,
+            "Season_Id": entity.Season_Id,  # <-- Added Season_Id
+            "SeasonName": season_name,
         },
-        "answers": [
-            {
-                "question_id": a.question_id,
-                "question_text": q.text_,
-                "answer": a.answer,
-                "remarks": a.remarks,
-                "evidence": [
-                    {
-                        "id": e.id,
-                        "file_url": to_file_url(e.file_path),
-                        "file_type": e.file_type,
-                    }
-                    for e in evidence_rows
-                    if e.question_id == a.question_id
-                ],
-            }
-            for a, q in answers
-        ],
-        "evidence": [
-            {
-                "id": e.id,
-                "file_url": to_file_url(e.file_path),
-                "file_type": e.file_type,
-            }
-            for e in evidence_rows
-        ],
+        # ...existing code...
     }
-
 
 @router.get("/inspectors/{inspector_id}/inspections")
 def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db)):
@@ -218,8 +174,12 @@ def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db))
             "Created_At": i.Created_At,
             "Status": i.Status,
             "Manager_Remarks": i.Manager_Remarks,
+            "Season_Id": i.Season_Id,
+            "SeasonName": season_name,  # <-- Added Season_Id
         })
     return result
+
+# ...existing code...
 
 
 # @router.post("/inspections/{inspection_id}/evidence")
