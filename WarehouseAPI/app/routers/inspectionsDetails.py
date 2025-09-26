@@ -72,10 +72,22 @@ def list_inspections(db: Session = Depends(get_db)):
 
 @router.get("/{inspection_id}", response_model=InspectionResponse)
 def get_inspection(inspection_id: int, db: Session = Depends(get_db)):
-    entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
-    if not entity:
+    inspection = (
+        db.query(Inspections, Seasons.Season_Name)
+        .join(Seasons, Inspections.Season_Id == Seasons.IdSeason)
+        .filter(Inspections.Id_Inspections == inspection_id)
+        .first()
+    )
+
+    if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
-    return entity
+
+    inspection_obj, season_name = inspection
+    inspection_dict = inspection_obj.__dict__.copy()
+    inspection_dict["SeasonName"] = season_name
+
+    return inspection_dict
+
 
 @router.put("/{inspection_id}", response_model=InspectionResponse)
 def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session = Depends(get_db)):

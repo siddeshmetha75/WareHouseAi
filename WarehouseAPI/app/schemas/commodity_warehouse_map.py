@@ -29,3 +29,18 @@ class CommodityWarehouseMap(CommodityWarehouseMapBase):
 
     class Config:
         from_attributes = True  # Pydantic v2
+
+class CommodityWarehouseMapResponse(BaseModel):
+    Id_CommodityWarehouseMap: int
+    WarehouseId: int
+    ManagerId: int
+    InspectorId: int
+    CommodityId: int
+    SeasonId: int
+    Is_Active: Optional[int]
+
+    CommodityName: Optional[str]
+    SeasonName: Optional[str]
+
+    class Config:
+        from_attributes = True
