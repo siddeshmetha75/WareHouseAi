@@ -4,7 +4,7 @@ from typing import List
 from fastapi import Form
 
 from ..database import SessionLocal
-from ..models import Warehouses, UserWarehouseMap, Questions, Inspections, InspectionAnswers, Evidence, Users, Commoditymaster
+from ..models import Warehouses, UserWarehouseMap, Questions, Inspections, InspectionAnswers, Evidence, Users, Commoditymaster, Seasons
 from ..schemas.inspection import (
     InspectionCreateRequest,
     InspectionCreateResponse,
@@ -121,33 +121,42 @@ def save_answers(
 
 # ...existing code...
 
-@router.get("/inspections/{inspection_id}")
-def get_inspection_detail(inspection_id: int, request: Request, db: Session = Depends(get_db)):
-    entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
-    if not entity:
-        raise HTTPException(status_code=404, detail="Inspection not found")
+@router.get("/inspectors/{inspector_id}/inspections")
+def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db)):
+    rows = (
+        db.query(Inspections)
+        .filter(Inspections.Inspector_Id == inspector_id)
+        .order_by(Inspections.Created_At.desc())
+        .all()
+    )
+    result = []
+    for i in rows:
+        wh = db.query(Warehouses).filter(Warehouses.Id_Warehouse == i.Warehouse_Id).first()
+        cm = (
+            db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == i.Commodity_Id).first()
+            if i.Commodity_Id else None
+        )
+        ins = db.query(Users).filter(Users.idusers == i.Inspector_Id).first()
+        season = db.query(Seasons).filter(Seasons.IdSeason == i.Season_Id).first()
+        season_name = season.Season_Name if season else None
 
-    # ...existing code...
-
-    return {
-        "inspection": {
-            "id": entity.Id_Inspections,
-            "warehouse": {"id": warehouse.Id_Warehouse, "name": warehouse.Warehouse_Name} if warehouse else None,
-            "commodity": (
-                {"id": commodity.IdCommodity, "name": commodity.Commodity_Name} if commodity else None
-            ),
+        result.append({
+            "Id_Inspections": i.Id_Inspections,
+            "warehouse": {"id": wh.Id_Warehouse, "name": wh.Warehouse_Name} if wh else None,
+            "commodity": {"id": cm.IdCommodity, "name": cm.Commodity_Name} if cm else None,
             "inspector": {
-                "id": inspector.idusers if inspector else None,
-                "username": inspector.UserName if inspector else None,
-                "full_name": inspector.Full_Name if inspector else None,
-            },
-            "status": entity.Status,
-            "manager_remarks": entity.Manager_Remarks,
-            "Season_Id": entity.Season_Id,  # <-- Added Season_Id
-            "SeasonName": season_name,
-        },
-        # ...existing code...
-    }
+                "id": ins.idusers if ins else None,
+                "username": ins.UserName if ins else None,
+                "full_name": ins.Full_Name if ins else None,
+            } if ins else None,
+            "Created_At": i.Created_At,
+            "Status": i.Status,
+            "Manager_Remarks": i.Manager_Remarks,
+            "Season_Id": i.Season_Id,
+            "SeasonName": season_name,  # ✅ Now defined safely
+        })
+    return result
+
 
 @router.get("/inspectors/{inspector_id}/inspections")
 def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db)):
