@@ -1,21 +1,20 @@
 from pydantic import BaseModel
-from typing import Optional
 
-
+# Shared schema
 class SeasonBase(BaseModel):
     Season_Name: str
 
-
+# Create schema
 class SeasonCreate(SeasonBase):
     pass
 
+# Update schema
+class SeasonUpdate(SeasonBase):
+    pass
 
-class SeasonUpdate(BaseModel):
-    Season_Name: Optional[str] = None
-
-
-class SeasonResponse(SeasonBase):
+# Response schema
+class Season(SeasonBase):
     IdSeason: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # replaces orm_mode in Pydantic v2

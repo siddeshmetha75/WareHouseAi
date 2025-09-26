@@ -16,6 +16,7 @@ from typing import List, Dict
 from fastapi.staticfiles import StaticFiles
 from .routers import crop_year as crop_year_router
 from .routers import season as season_router
+from .routers import remark as remark_router
 import os
 
 
@@ -46,6 +47,7 @@ app.include_router(inspector_router.router)
 app.include_router(manager_router.router)
 app.include_router(admin_router.router)
 app.include_router(questions_router.router)
+app.include_router(remark_router.router)
 Base.metadata.create_all(bind=engine)
 
 # app = FastAPI(title="Warehouse Inspection API")

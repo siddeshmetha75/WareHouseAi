@@ -1,67 +1,61 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
 
-from ..database import SessionLocal
-from ..models import Seasons as SeasonsModel
-from ..schemas.season import SeasonCreate, SeasonUpdate, SeasonResponse
+from app.dependencies import get_db
+from app.models import Seasons
+from app.schemas.season import Season, SeasonCreate, SeasonUpdate
 
 router = APIRouter(prefix="/seasons", tags=["Seasons"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Get all seasons
+@router.get("", response_model=List[Season])
+def list_all(name: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    q = db.query(Seasons)
+    if name:
+        q = q.filter(Seasons.Season_Name.ilike(f"%{name}%"))
+    return q.all()
 
 
-@router.get("/", response_model=List[SeasonResponse])
-def list_seasons(db: Session = Depends(get_db)):
-    items = db.query(SeasonsModel).all()
-    return items
-
-
-@router.get("/{season_id}", response_model=SeasonResponse)
-def get_season(season_id: int, db: Session = Depends(get_db)):
-    item = db.query(SeasonsModel).filter(SeasonsModel.IdSeason == season_id).first()
-    if not item:
+# Get season by ID
+@router.get("/{season_id}", response_model=Season)
+def get_by_id(season_id: int, db: Session = Depends(get_db)):
+    entity = db.query(Seasons).filter(Seasons.IdSeason == season_id).first()
+    if not entity:
         raise HTTPException(status_code=404, detail="Season not found")
-    return item
+    return entity
 
 
-@router.post("/", response_model=SeasonResponse, status_code=status.HTTP_201_CREATED)
-def create_season(payload: SeasonCreate, db: Session = Depends(get_db)):
-    entity = SeasonsModel(**payload.dict())
+# Create season
+@router.post("", response_model=Season)
+def create(payload: SeasonCreate, db: Session = Depends(get_db)):
+    entity = Seasons(**payload.model_dump())
     db.add(entity)
     db.commit()
     db.refresh(entity)
     return entity
 
 
-@router.put("/{season_id}", response_model=SeasonResponse)
-def update_season(season_id: int, payload: SeasonUpdate, db: Session = Depends(get_db)):
-    entity = db.query(SeasonsModel).filter(SeasonsModel.IdSeason == season_id).first()
+# Update season
+@router.put("/{season_id}", response_model=Season)
+def update(season_id: int, payload: SeasonUpdate, db: Session = Depends(get_db)):
+    entity = db.query(Seasons).filter(Seasons.IdSeason == season_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Season not found")
-
-    for var, value in payload.dict(exclude_unset=True).items():
-        setattr(entity, var, value)
-
-    db.add(entity)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(entity, key, value)
     db.commit()
     db.refresh(entity)
     return entity
 
 
-@router.delete("/{season_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_season(season_id: int, db: Session = Depends(get_db)):
-    entity = db.query(SeasonsModel).filter(SeasonsModel.IdSeason == season_id).first()
+# Delete season
+@router.delete("/{season_id}")
+def delete(season_id: int, db: Session = Depends(get_db)):
+    entity = db.query(Seasons).filter(Seasons.IdSeason == season_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Season not found")
-
-    # Hard delete (Seasons model has no Is_Active column)
     db.delete(entity)
     db.commit()
-    return None
+    return {"detail": "Season deleted"}
