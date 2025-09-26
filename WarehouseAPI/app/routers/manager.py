@@ -88,6 +88,41 @@ def get_answers(inspection_id: int, db: Session = Depends(get_db)):
     ]
 
 
+# @router.put("/inspections/{inspection_id}/review")
+# def review_inspection(
+#     inspection_id: int,
+#     payload: dict,
+#     db: Session = Depends(get_db),
+# ):
+#     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
+#     if not entity:
+#         raise HTTPException(status_code=404, detail="Inspection not found")
+
+#     status = payload.get("status")
+#     remarks = payload.get("manager_remarks")
+#     if status not in ("Accepted", "Rejected"):
+#         raise HTTPException(status_code=400, detail="status must be 'Accepted' or 'Rejected'")
+
+#     entity.Status = status
+#     entity.Manager_Remarks = remarks
+#     db.commit()
+#     db.refresh(entity)
+#     wh = db.query(Warehouses).filter(Warehouses.Id_Warehouse == entity.Warehouse_Id).first()
+#     cm = db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first() if entity.Commodity_Id else None
+#     ins = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
+#     return {
+#         "Id_Inspections": entity.Id_Inspections,
+#         "warehouse": {"id": wh.Id_Warehouse, "name": wh.Warehouse_Name} if wh else None,
+#         "commodity": ({"id": cm.IdCommodity, "name": cm.Commodity_Name} if cm else None),
+#         "inspector": {
+#             "id": ins.idusers if ins else None,
+#             "username": ins.UserName if ins else None,
+#             "full_name": ins.Full_Name if ins else None,
+#         },
+#         "Created_At": entity.Created_At,
+#         "Status": entity.Status,
+#         "Manager_Remarks": entity.Manager_Remarks,
+#     }
 @router.put("/inspections/{inspection_id}/review")
 def review_inspection(
     inspection_id: int,
@@ -103,17 +138,33 @@ def review_inspection(
     if status not in ("Accepted", "Rejected"):
         raise HTTPException(status_code=400, detail="status must be 'Accepted' or 'Rejected'")
 
+    # Update inspection
     entity.Status = status
     entity.Manager_Remarks = remarks
     db.commit()
     db.refresh(entity)
+
+    # Fetch related warehouse, commodity, inspector
     wh = db.query(Warehouses).filter(Warehouses.Id_Warehouse == entity.Warehouse_Id).first()
     cm = db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first() if entity.Commodity_Id else None
     ins = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
+
+    # Fetch related remarks
+    remarks_list = []
+    inspection_answers = db.query(InspectionAnswers).filter(InspectionAnswers.Inspection_Id == inspection_id).all()
+    for answer in inspection_answers:
+        answer_remarks = db.query(Remark).filter(Remark.inspection_answer_Id == answer.id).all()
+        for r in answer_remarks:
+            remarks_list.append({
+                "question_id": r.Question_Id,
+                "status": answer.Status,  # assuming InspectionAnswers has Status
+                "manager_remarks": r.Remarks
+            })
+
     return {
         "Id_Inspections": entity.Id_Inspections,
         "warehouse": {"id": wh.Id_Warehouse, "name": wh.Warehouse_Name} if wh else None,
-        "commodity": ({"id": cm.IdCommodity, "name": cm.Commodity_Name} if cm else None),
+        "commodity": {"id": cm.IdCommodity, "name": cm.Commodity_Name} if cm else None,
         "inspector": {
             "id": ins.idusers if ins else None,
             "username": ins.UserName if ins else None,
@@ -122,6 +173,7 @@ def review_inspection(
         "Created_At": entity.Created_At,
         "Status": entity.Status,
         "Manager_Remarks": entity.Manager_Remarks,
+        "per_answers": remarks_list
     }
 
 
@@ -258,4 +310,61 @@ def get_inspection_detail(inspection_id: int, request: Request, db: Session = De
     }
 
 
+@router.get("/inspections/{inspection_id}")
+def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
 
+    # Fetch inspection with related objects using joinedload
+    inspection = db.query(Inspections).options(
+        joinedload(Inspections.warehouses),
+        joinedload(Inspections.commoditymaster),
+        joinedload(Inspections.users),
+        joinedload(Inspections.managers),
+        joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.remark),
+        joinedload(Inspections.commoditymaster).joinedload(Commoditymaster.commodity_season).joinedload('seasons')
+    ).filter(Inspections.Id_Inspections == inspection_id).first()
+
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    # Season info
+    season = db.query(Seasons).filter(Seasons.IdSeason == inspection.Season_Id).first()
+
+    # Build per_answers list
+    per_answers = []
+    for ans in inspection.inspection_answers:
+        for r in ans.remark:
+            per_answers.append({
+                "question_id": r.Question_Id,
+                "status": ans.remarks,  # or ans.Status if you have it in InspectionAnswers
+                "manager_remarks": r.Remarks
+            })
+
+    return {
+        "Id_Inspections": inspection.Id_Inspections,
+        "Status": inspection.Status,
+        "Manager_Remarks": inspection.Manager_Remarks,
+        "Created_At": inspection.Created_At,
+        "Completed_At": inspection.Completed_At,
+        "Warehouse": {
+            "id": inspection.warehouses.Id_Warehouse,
+            "name": inspection.warehouses.Warehouse_Name
+        } if inspection.warehouses else None,
+        "Commodity": {
+            "id": inspection.commoditymaster.IdCommodity,
+            "name": inspection.commoditymaster.Commodity_Name
+        } if inspection.commoditymaster else None,
+        "Inspector": {
+            "id": inspection.users.idusers,
+            "username": inspection.users.UserName,
+            "full_name": inspection.users.Full_Name
+        } if inspection.users else None,
+        "Manager": {
+            "id": inspection.managers.Id_Manager,
+            "full_name": inspection.managers.users.Full_Name if inspection.managers.users else None
+        } if inspection.managers else None,
+        "Season": {
+            "id": season.IdSeason if season else None,
+            "name": season.Season_Name if season else None
+        },
+        "per_answers": per_answers
+    }
