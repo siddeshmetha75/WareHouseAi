@@ -163,6 +163,18 @@ export async function reviewInspection(
   return data
 }
 
+// Update inspection details (answers/remarks/status) for editing flow
+export async function updateInspectionDetails(
+  inspectionId: number,
+  payload: {
+    status: string
+    answers: Array<{ question_id: number; answer?: string; remarks?: string }>
+  }
+) {
+  const { data } = await api.put(`/inspectionsDetails/${inspectionId}`, payload)
+  return data
+}
+
 export async function getManagerInspectors(managerId: number) {
   const { data } = await api.get(`/api/managers/${managerId}/inspectors`)
   return data as Array<{ id: number; UserName?: string; Full_Name?: string; EmailId?: string; Role?: string }>
