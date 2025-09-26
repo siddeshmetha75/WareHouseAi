@@ -13,9 +13,10 @@ interface ProtectedRouteProps {
   children: React.ReactNode
   requiredRoles?: UserRole[]
   fallbackPath?: string
+  unauthorizedPath?: string
 }
 
-export function ProtectedRoute({ children, requiredRoles = [], fallbackPath = "/login" }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requiredRoles = [], fallbackPath = "/login", unauthorizedPath = "/unauthorized" }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
 
@@ -27,11 +28,11 @@ export function ProtectedRoute({ children, requiredRoles = [], fallbackPath = "/
       }
 
       if (requiredRoles.length > 0 && !hasRole(user, requiredRoles)) {
-        router.push("/unauthorized")
+        router.push(unauthorizedPath)
         return
       }
     }
-  }, [user, isLoading, requiredRoles, router, fallbackPath])
+  }, [user, isLoading, requiredRoles, router, fallbackPath, unauthorizedPath])
 
   if (isLoading) {
     return (

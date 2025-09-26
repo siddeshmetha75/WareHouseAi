@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { fetchInspectorWarehouses } from "@/lib/api"
 import type { Warehouse } from "@/lib/types"
@@ -10,12 +10,35 @@ import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from
 import { ShimmerCard } from "@/components/ui/shimmer"
 import { Warehouse as WarehouseIcon, MapPin, Package, Navigation } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 export default function InspectorDashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [checkingId, setCheckingId] = useState<number | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingWarehouse, setPendingWarehouse] = useState<Warehouse | null>(null)
+  const [dontAskAgain, setDontAskAgain] = useState(false)
+
+  const SKIP_KEY = "inspector_geo_skip"
+
+  // If permission already granted from a previous session, remember to skip our dialog
+  useEffect(() => {
+    (async () => {
+      try {
+        const perm = await getGeoPermissionState()
+        if (perm === "granted") {
+          localStorage.setItem(SKIP_KEY, "1")
+        } else {
+          // If permission is not granted anymore (prompt/denied), clear skip flag so dialog shows again
+          localStorage.removeItem(SKIP_KEY)
+        }
+      } catch {}
+    })()
+  }, [])
 
   const { data, isLoading } = useQuery({
     queryKey: ["inspector-warehouses", user?.id],
@@ -50,8 +73,32 @@ export default function InspectorDashboardPage() {
     return R * c
   }
 
-  const handleWarehouseClick = (warehouse: Warehouse) => {
+  const handleWarehouseClick = async (warehouse: Warehouse) => {
     if (checkingId !== null) return
+    const perm = await getGeoPermissionState()
+    // Only bypass dialog when permission is actually granted
+    if (perm === "granted") {
+      performLocationCheck(warehouse)
+      return
+    }
+    setPendingWarehouse(warehouse)
+    setConfirmOpen(true)
+  }
+
+  async function getGeoPermissionState(): Promise<"granted" | "denied" | "prompt"> {
+    try {
+      // Some TS libs don't include geolocation in PermissionName; cast to any
+      if ("permissions" in navigator && (navigator as any).permissions?.query) {
+        const status = await (navigator as any).permissions.query({ name: "geolocation" as any })
+        return status.state as any
+      }
+      return "prompt"
+    } catch {
+      return "prompt"
+    }
+  }
+
+  const performLocationCheck = async (warehouse: Warehouse) => {
     setCheckingId(warehouse.id)
     if (!("geolocation" in navigator)) {
       toast({
@@ -62,7 +109,18 @@ export default function InspectorDashboardPage() {
       setCheckingId(null)
       return
     }
-  
+
+    const perm = await getGeoPermissionState()
+    if (perm === "denied") {
+      toast({
+        variant: "destructive",
+        title: "Location Permission Blocked",
+        description: "Please enable location for this site in your browser settings and try again.",
+      })
+      setCheckingId(null)
+      return
+    }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords
@@ -80,20 +138,22 @@ export default function InspectorDashboardPage() {
         const BASE_TOLERANCE = 150 // meters
         const MAX_TOLERANCE = 500 // cap tolerance so poor accuracy doesn't allow too much
         const tolerance = Math.min(Math.max(BASE_TOLERANCE, Math.round(accuracy)), MAX_TOLERANCE)
-  
+
         if (distance <= tolerance) {
           toast({
             title: "Location Matched ",
-            description: `You are at ${warehouse.name}. Redirecting...` ,
+            description: `You are at ${warehouse.name}. Redirecting...`,
           })
+          // Remember consent after a successful check
+          try { localStorage.setItem(SKIP_KEY, "1") } catch {}
           setTimeout(() => {
-            router.push(`/inspector/warehouses/${warehouse.id}` )
+            router.push(`/inspector/warehouses/${warehouse.id}`)
           }, 200)
         } else {
           toast({
             variant: "destructive",
             title: "Location Not Matched ",
-            description: `Distance: ${Math.round(distance)}m (Allowed: ${Math.round(tolerance)}m)` ,
+            description: `Distance: ${Math.round(distance)}m (Allowed: ${Math.round(tolerance)}m)`,
           })
         }
         setCheckingId(null)
@@ -103,7 +163,7 @@ export default function InspectorDashboardPage() {
           toast({
             variant: "destructive",
             title: "Permission Denied",
-            description: "Please enable location services to proceed.",
+            description: "Please click Allow when prompted, or enable location for this site and try again.",
           })
         } else {
           toast({
@@ -177,6 +237,39 @@ export default function InspectorDashboardPage() {
           <p className="text-gray-500">No warehouses assigned to you.</p>
         </div>
       )}
+
+      {/* Confirmation Dialog before requesting location */}
+      <AlertDialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) setDontAskAgain(false) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Allow Location Access</AlertDialogTitle>
+            <AlertDialogDescription>
+              To verify you are at the warehouse, we need your current location. Your location will only be used to
+              check proximity and will not be stored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <Checkbox id="dont-ask" checked={dontAskAgain} onCheckedChange={(v) => setDontAskAgain(Boolean(v))} />
+            <Label htmlFor="dont-ask" className="text-sm text-gray-600">Don't ask again</Label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setPendingWarehouse(null) }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOpen(false)
+                if (pendingWarehouse) {
+                  if (dontAskAgain) {
+                    try { localStorage.setItem(SKIP_KEY, "1") } catch {}
+                  }
+                  performLocationCheck(pendingWarehouse)
+                }
+              }}
+            >
+              Allow
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
