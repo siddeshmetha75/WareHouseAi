@@ -1,127 +1,83 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+# from fastapi import APIRouter, Depends, HTTPException
+# from sqlalchemy.orm import Session
 
-from app.schemas.hierarchy import AdminHierarchy, ManagerBase, InspectorBase, WarehouseBase, InspectionBase
-from app.models import Users, Managers, Warehouses, Inspections
-from app.database import get_db  # assuming you have get_db in database.py
+# from app.models import Users, Warehouses
+# from app.schemas.hierarchy import HierarchyResponse, ManagerSchema, UserSchema, WarehouseSchema
+# from app.database import get_db
 
-router = APIRouter(prefix="/hierarchy", tags=["Hierarchy"])
-
-# Utility to fetch inspector data
-def get_inspector_details(db: Session, inspector: Users) -> InspectorBase:
-    warehouses = [
-        WarehouseBase(
-            Id_Warehouse=w.Id_Warehouse,
-            Warehouse_Name=w.Warehouse_Name,
-            Location=w.Location,
-            Capacity=w.Capacity,
-            Latitude=float(w.Latitude) if w.Latitude else None,
-            Longitude=float(w.Longitude) if w.Longitude else None,
-            Inventory=w.Inventory,
-            inspections=[
-                InspectionBase(
-                    Id_Inspections=i.Id_Inspections,
-                    Status=i.Status,
-                    Created_At=i.Created_At,
-                    Completed_At=i.Completed_At,
-                    Risk_Score=i.Risk_Score
-                ) for i in w.inspections if i.Status
-            ]
-        )
-        for w in inspector.user_warehouse_map
-    ]
-    
-    inspections = [
-        InspectionBase(
-            Id_Inspections=i.Id_Inspections,
-            Status=i.Status,
-            Created_At=i.Created_At,
-            Completed_At=i.Completed_At,
-            Risk_Score=i.Risk_Score
-        ) for i in inspector.inspections if i.Status
-    ]
-
-    return InspectorBase(
-        idusers=inspector.idusers,
-        UserName=inspector.UserName,
-        Full_Name=inspector.Full_Name,
-        EmailId=inspector.EmailId,
-        warehouses=warehouses,
-        inspections=inspections
-    )
+# router = APIRouter(prefix="/hierarchy", tags=["Hierarchy"])
 
 
-# Utility to fetch manager data
-def get_manager_details(db: Session, manager: Users) -> ManagerBase:
-    manager_obj = db.query(Managers).filter(Managers.User_Id == manager.idusers).first()
-    if not manager_obj:
-        raise HTTPException(status_code=404, detail="Manager not found")
+# @router.get("/", response_model=HierarchyResponse)
+# def get_user_hierarchy(email: str, db: Session = Depends(get_db)):
+#     user = db.query(Users).filter(Users.EmailId == email).first()
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
 
-    inspectors = [
-        get_inspector_details(db, inspector.User)
-        for inspector in manager_obj.user_warehouse_map
-        if inspector.User.Role == "Inspector" and inspector.User.Is_Active == 1
-    ]
+#     # If Admin → fetch managers under admin, and inspectors under those managers
+#     if user.Role == "Admin":
+#         managers = db.query(Users).filter(Users.Role == "Manager", Users.UserId == user.idusers).all()
+#         manager_data = []
+#         for m in managers:
+#             inspectors = db.query(Users).filter(Users.Role == "Inspector", Users.UserId == m.idusers).all()
+#             manager_data.append(
+#                 ManagerSchema(
+#                     id=m.idusers,
+#                     name=m.Full_Name,
+#                     email=m.EmailId,
+#                     role=m.Role,
+#                     inspectors=[
+#                         UserSchema(id=i.idusers, name=i.Full_Name, email=i.EmailId, role=i.Role)
+#                         for i in inspectors
+#                     ],
+#                 )
+#             )
+#         return HierarchyResponse(role="Admin", managers=manager_data)
 
-    warehouses = [
-        WarehouseBase(
-            Id_Warehouse=w.Warehouse.Id_Warehouse,
-            Warehouse_Name=w.Warehouse.Warehouse_Name,
-            Location=w.Warehouse.Location,
-            Capacity=w.Warehouse.Capacity,
-            Latitude=float(w.Warehouse.Latitude) if w.Warehouse.Latitude else None,
-            Longitude=float(w.Warehouse.Longitude) if w.Warehouse.Longitude else None,
-            Inventory=w.Warehouse.Inventory,
-            inspections=[
-                InspectionBase(
-                    Id_Inspections=i.Id_Inspections,
-                    Status=i.Status,
-                    Created_At=i.Created_At,
-                    Completed_At=i.Completed_At,
-                    Risk_Score=i.Risk_Score
-                ) for i in w.Warehouse.inspections
-            ]
-        )
-        for w in manager_obj.user_warehouse_map
-    ]
+#     # If Manager → fetch inspectors under this manager
+#     elif user.Role == "Manager":
+#         inspectors = db.query(Users).filter(Users.Role == "Inspector", Users.UserId == user.idusers).all()
+#         return HierarchyResponse(
+#             role="Manager",
+#             managers=[
+#                 ManagerSchema(
+#                     id=user.idusers,
+#                     name=user.Full_Name,
+#                     email=user.EmailId,
+#                     role=user.Role,
+#                     inspectors=[
+#                         UserSchema(id=i.idusers, name=i.Full_Name, email=i.EmailId, role=i.Role)
+#                         for i in inspectors
+#                     ],
+#                 )
+#             ],
+#         )
 
-    inspections = [
-        InspectionBase(
-            Id_Inspections=i.Id_Inspections,
-            Status=i.Status,
-            Created_At=i.Created_At,
-            Completed_At=i.Completed_At,
-            Risk_Score=i.Risk_Score
-        ) for i in manager_obj.inspections
-    ]
+#     # If Inspector → no children
+#     else:
+#         return HierarchyResponse(role="Inspector", managers=[])
 
-    return ManagerBase(
-        idusers=manager.idusers,
-        UserName=manager.UserName,
-        Full_Name=manager.Full_Name,
-        EmailId=manager.EmailId,
-        inspectors=inspectors,
-        warehouses=warehouses,
-        inspections=inspections
-    )
+# @router.get("/manager-warehouses", response_model=list[WarehouseSchema])
+# def get_manager_warehouses(user_id: int, db: Session = Depends(get_db)):
+#     # find all warehouse mappings for this manager
+#     mappings = db.query(UserWarehouseMap).filter(UserWarehouseMap.Manager_id == user_id).all()
+#     if not mappings:
+#         raise HTTPException(status_code=404, detail="No warehouses found for this manager")
 
+#     warehouse_ids = [m.Warehouse_id for m in mappings]
 
-@router.get("/admin/{admin_id}", response_model=AdminHierarchy)
-def get_admin_hierarchy(admin_id: int, db: Session = Depends(get_db)):
-    admin = db.query(Users).filter(Users.idusers == admin_id, Users.Role == "Admin", Users.Is_Active == 1).first()
-    if not admin:
-        raise HTTPException(status_code=404, detail="Admin not found")
+#     warehouses = db.query(Warehouses).filter(Warehouses.Id_Warehouse.in_(warehouse_ids)).all()
 
-    managers = [
-        get_manager_details(db, manager)
-        for manager in db.query(Users).filter(Users.Role == "Manager", Users.Is_Active == 1).all()
-    ]
-
-    return AdminHierarchy(
-        idusers=admin.idusers,
-        UserName=admin.UserName,
-        Full_Name=admin.Full_Name,
-        EmailId=admin.EmailId,
-        managers=managers
-    )
+#     return [
+#         WarehouseSchema(
+#             id=w.Id_Warehouse,
+#             name=w.Warehouse_Name,
+#             location=w.Location,
+#             code=w.Code,
+#             capacity=w.Capacity,
+#             latitude=float(w.Latitude) if w.Latitude is not None else None,
+#             longitude=float(w.Longitude) if w.Longitude is not None else None,
+#             inventory=w.Inventory,
+#         )
+#         for w in warehouses
+#     ]

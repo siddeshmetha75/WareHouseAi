@@ -1,63 +1,34 @@
-from typing import List, Optional
-from pydantic import BaseModel
-from datetime import datetime
-
-class InspectionBase(BaseModel):
-    Id_Inspections: int
-    Status: Optional[str]
-    Created_At: Optional[datetime]
-    Completed_At: Optional[datetime]
-    Risk_Score: Optional[float]
-
-    class Config:
-        orm_mode = True
+# from typing import List, Optional
+# from pydantic import BaseModel
 
 
-class WarehouseBase(BaseModel):
-    Id_Warehouse: int
-    Warehouse_Name: Optional[str]
-    Location: Optional[str]
-    Capacity: Optional[int]
-    Latitude: Optional[float]
-    Longitude: Optional[float]
-    Inventory: Optional[str]
-    inspections: List[InspectionBase] = []
+# class UserSchema(BaseModel):
+#     id: int
+#     name: Optional[str]
+#     email: Optional[str]
+#     role: str
 
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
 
 
-class InspectorBase(BaseModel):
-    idusers: int
-    UserName: Optional[str]
-    Full_Name: Optional[str]
-    EmailId: Optional[str]
-    warehouses: List[WarehouseBase] = []
-    inspections: List[InspectionBase] = []
-
-    class Config:
-        orm_mode = True
+# class ManagerSchema(UserSchema):
+#     inspectors: List[UserSchema] = []
 
 
-class ManagerBase(BaseModel):
-    idusers: int
-    UserName: Optional[str]
-    Full_Name: Optional[str]
-    EmailId: Optional[str]
-    inspectors: List[InspectorBase] = []
-    warehouses: List[WarehouseBase] = []
-    inspections: List[InspectionBase] = []
+# class HierarchyResponse(BaseModel):
+#     role: str
+#     managers: List[ManagerSchema] = []
 
-    class Config:
-        orm_mode = True
+# class WarehouseSchema(BaseModel):
+#     id: int
+#     name: Optional[str]
+#     location: Optional[str]
+#     code: Optional[str]
+#     capacity: Optional[int]
+#     latitude: Optional[float]
+#     longitude: Optional[float]
+#     inventory: Optional[str]
 
-
-class AdminHierarchy(BaseModel):
-    idusers: int
-    UserName: Optional[str]
-    Full_Name: Optional[str]
-    EmailId: Optional[str]
-    managers: List[ManagerBase] = []
-
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True

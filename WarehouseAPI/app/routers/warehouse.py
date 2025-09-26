@@ -5,6 +5,7 @@ from typing import List
 from ..database import SessionLocal
 from ..schemas.warehouse import WarehouseCreate, WarehouseUpdate, WarehouseResponse
 from ..services import warehouse_service
+from .. import models
 
 
 router = APIRouter(prefix="/warehouses", tags=["Warehouses"])
@@ -51,4 +52,22 @@ def delete(warehouse_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Warehouse not found")
     return None
 
+@router.get("/by-manager/{manager_id}", response_model=List[WarehouseResponse])
+def get_warehouses_by_manager(manager_id: int, db: Session = Depends(get_db)):
+    # Get all warehouse mappings for this manager
+    warehouse_maps = db.query(models.UserWarehouseMap).filter(
+        models.UserWarehouseMap.Manager_id == manager_id
+    ).all()
 
+    if not warehouse_maps:
+        raise HTTPException(status_code=404, detail="No warehouses found for this manager")
+
+    # Extract all warehouse IDs
+    warehouse_ids = [wm.Warehouse_id for wm in warehouse_maps]
+
+    # Fetch warehouse details
+    warehouses = db.query(models.Warehouses).filter(
+        models.Warehouses.Id_Warehouse.in_(warehouse_ids)
+    ).all()
+
+    return warehouses
