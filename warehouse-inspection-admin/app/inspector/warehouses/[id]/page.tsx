@@ -18,6 +18,11 @@ export default function WarehouseDetailPage() {
   const [commodities, setCommodities] = useState<Commodity[]>([])
   const [selectedCommodity, setSelectedCommodity] = useState<Commodity | null>(null)
   const [warehouseName, setWarehouseName] = useState<string>("")
+  type Season = { Season_Name: string; IdSeason: number }
+  const [seasons, setSeasons] = useState<Season[]>([])
+  const [seasonsLoading, setSeasonsLoading] = useState<boolean>(false)
+  const [seasonsError, setSeasonsError] = useState<string>("")
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("")
 
   useEffect(() => {
     fetchCommodities()
@@ -44,10 +49,37 @@ export default function WarehouseDetailPage() {
   const handleCommoditySelect = (value: string) => {
     const commodity = commodities.find(c => c.id.toString() === value)
     setSelectedCommodity(commodity || null)
+    // Reset season state whenever commodity changes
+    setSelectedSeasonId("")
+    setSeasons([])
+    setSeasonsError("")
+
     if (commodity?.Storage === "Cold") {
       return
     }
-    router.push(`/inspector/warehouses/${id}/inspect/${value}`)
+    // For non-cold commodities, fetch seasons and show season selector
+    setSeasonsLoading(true)
+    fetch("http://localhost:8000/seasons/")
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to fetch seasons: ${res.status}`)
+        return res.json()
+      })
+      .then((data: Season[]) => {
+        setSeasons(data || [])
+      })
+      .catch(err => {
+        console.error("Error fetching seasons:", err)
+        setSeasonsError("Unable to load seasons. Please try again.")
+      })
+      .finally(() => setSeasonsLoading(false))
+  }
+
+  const handleSeasonSelect = (value: string) => {
+    setSelectedSeasonId(value)
+    const commodityId = selectedCommodity?.id?.toString()
+    if (!commodityId) return
+    // Navigate with season as query param to keep existing route structure
+    router.push(`/inspector/warehouses/${id}/inspect/${commodityId}?season=${value}`)
   }
 
   return (
@@ -91,6 +123,33 @@ export default function WarehouseDetailPage() {
                   Please check back later or contact your manager for assistance.
                 </AlertDescription>
               </Alert>
+            )}
+            {selectedCommodity && selectedCommodity.Storage !== "Cold" && (
+              <div className="space-y-2">
+                <Label>Select Season</Label>
+                <Select onValueChange={handleSeasonSelect} disabled={seasonsLoading || !!seasonsError}>
+                  <SelectTrigger className="border-blue-300 hover:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors">
+                    <SelectValue placeholder={seasonsLoading ? "Loading seasons..." : "Choose a season"} />
+                  </SelectTrigger>
+                  <SelectContent className="border border-blue-200 bg-white shadow-lg ring-1 ring-blue-100">
+                    {seasonsError ? (
+                      <div className="p-2 text-sm text-red-600">{seasonsError}</div>
+                    ) : seasons.length === 0 ? (
+                      <div className="p-2 text-sm text-gray-500">{seasonsLoading ? "Loading..." : "No seasons found"}</div>
+                    ) : (
+                      seasons.map((s) => (
+                        <SelectItem
+                          key={s.IdSeason}
+                          value={s.IdSeason.toString()}
+                          className="focus:bg-blue-100 focus:text-blue-800 data-[highlighted]:bg-blue-50 data-[highlighted]:text-blue-700"
+                        >
+                          {s.Season_Name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
         </CardContent>
