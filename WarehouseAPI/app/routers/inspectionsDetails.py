@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import SessionLocal
 from ..models import Inspections
+from app.models import Inspections, Seasons
 from ..models import Inspections, Warehouses, Users, Managers
 from ..schemas.inspection import InspectionCreate, InspectionUpdate,InspectionDetailsResponse, InspectionResponse
 
@@ -48,9 +49,26 @@ def create_inspection(payload: InspectionCreate, db: Session = Depends(get_db)):
 #     )
 #     return inspections
 
+# @router.get("", response_model=List[InspectionResponse])
+# def list_inspections(db: Session = Depends(get_db)):
+#     return db.query(Inspections).all()
+
 @router.get("", response_model=List[InspectionResponse])
 def list_inspections(db: Session = Depends(get_db)):
-    return db.query(Inspections).all()
+    inspections = (
+        db.query(Inspections, Seasons.Season_Name)
+        .join(Seasons, Inspections.Season_Id == Seasons.IdSeason)
+        .all()
+    )
+
+    # Transform result to match InspectionResponse schema
+    result = []
+    for inspection, season_name in inspections:
+        inspection_dict = inspection.__dict__.copy()
+        inspection_dict["SeasonName"] = season_name
+        result.append(inspection_dict)
+
+    return result
 
 @router.get("/{inspection_id}", response_model=InspectionResponse)
 def get_inspection(inspection_id: int, db: Session = Depends(get_db)):

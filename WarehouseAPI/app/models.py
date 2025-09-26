@@ -22,6 +22,7 @@ class Commoditymaster(Base):
     Category: Mapped[Optional[str]] = mapped_column(String(45))
 
     commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='commoditymaster')
+    commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='commoditymaster')
     crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='commoditymaster')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='commoditymaster')
 
@@ -46,6 +47,7 @@ class Seasons(Base):
     Season_Name: Mapped[str] = mapped_column(Enum('Rabi', 'Kharif', 'Zaid'), nullable=False)
 
     commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='seasons')
+    commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='seasons')
     crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='seasons')
 
 
@@ -61,6 +63,8 @@ class Users(Base):
     Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
     UserId: Mapped[Optional[int]] = mapped_column(Integer)
 
+    commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.InspectorId]', back_populates='users')
+    commodity_warehouse_map_: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.ManagerId]', back_populates='users_')
     managers: Mapped[list['Managers']] = relationship('Managers', back_populates='users')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='users')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='User')
@@ -79,6 +83,7 @@ class Warehouses(Base):
     Longitude: Mapped[Optional[decimal.Decimal]] = mapped_column(DECIMAL(10, 6))
     Inventory: Mapped[Optional[str]] = mapped_column(String(45))
 
+    commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='warehouses')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='warehouses')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Warehouse')
 
@@ -98,6 +103,36 @@ class CommoditySeason(Base):
 
     commoditymaster: Mapped['Commoditymaster'] = relationship('Commoditymaster', back_populates='commodity_season')
     seasons: Mapped['Seasons'] = relationship('Seasons', back_populates='commodity_season')
+
+
+class CommodityWarehouseMap(Base):
+    __tablename__ = 'commodity_warehouse_map'
+    __table_args__ = (
+        ForeignKeyConstraint(['CommodityId'], ['commoditymaster.IdCommodity'], name='fk_CommodityId'),
+        ForeignKeyConstraint(['InspectorId'], ['users.idusers'], name='fk_InspectorId'),
+        ForeignKeyConstraint(['ManagerId'], ['users.idusers'], name='fk_Manager_Id'),
+        ForeignKeyConstraint(['SeasonId'], ['seasons.IdSeason'], name='fk_SeasonId'),
+        ForeignKeyConstraint(['WarehouseId'], ['warehouses.Id_Warehouse'], name='fk_WarehouseId'),
+        Index('fk_CommodityId_idx', 'CommodityId'),
+        Index('fk_InspectorId_idx', 'InspectorId'),
+        Index('fk_ManagerId_idx', 'ManagerId'),
+        Index('fk_SeasonId_idx', 'SeasonId'),
+        Index('fk_WarehouseId_idx', 'WarehouseId')
+    )
+
+    Id_CommodityWarehouseMap: Mapped[int] = mapped_column(Integer, primary_key=True)
+    WarehouseId: Mapped[int] = mapped_column(Integer, nullable=False)
+    ManagerId: Mapped[int] = mapped_column(Integer, nullable=False)
+    InspectorId: Mapped[int] = mapped_column(Integer, nullable=False)
+    CommodityId: Mapped[int] = mapped_column(Integer, nullable=False)
+    SeasonId: Mapped[int] = mapped_column(Integer, nullable=False)
+    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
+
+    commoditymaster: Mapped['Commoditymaster'] = relationship('Commoditymaster', back_populates='commodity_warehouse_map')
+    users: Mapped['Users'] = relationship('Users', foreign_keys=[InspectorId], back_populates='commodity_warehouse_map')
+    users_: Mapped['Users'] = relationship('Users', foreign_keys=[ManagerId], back_populates='commodity_warehouse_map_')
+    seasons: Mapped['Seasons'] = relationship('Seasons', back_populates='commodity_warehouse_map')
+    warehouses: Mapped['Warehouses'] = relationship('Warehouses', back_populates='commodity_warehouse_map')
 
 
 class CropYear(Base):
@@ -256,6 +291,7 @@ class Remark(Base):
     inspection_answer_Id: Mapped[int] = mapped_column(Integer, nullable=False)
     Remarks: Mapped[Optional[str]] = mapped_column(String(45))
     Condition: Mapped[Optional[str]] = mapped_column(String(45))
+    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
 
     evidence: Mapped['Evidence'] = relationship('Evidence', back_populates='remark')
     users: Mapped['Users'] = relationship('Users', back_populates='remark')

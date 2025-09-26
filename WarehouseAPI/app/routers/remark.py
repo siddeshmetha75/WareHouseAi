@@ -9,15 +9,19 @@ router = APIRouter(prefix="/remarks", tags=["Remarks"])
 
 
 # Get all remarks
+# Get all remarks (only active)
 @router.get("/", response_model=list[Remark])
 def get_remarks(db: Session = Depends(get_db)):
-    return db.query(models.Remark).all()
+    return db.query(models.Remark).filter(models.Remark.Is_Active == 1).all()
 
 
-# Get remark by id
+
 @router.get("/{remark_id}", response_model=Remark)
 def get_remark(remark_id: int, db: Session = Depends(get_db)):
-    remark = db.query(models.Remark).filter(models.Remark.Id_Remark == remark_id).first()
+    remark = db.query(models.Remark).filter(
+        models.Remark.Id_Remark == remark_id,
+        models.Remark.Is_Active == 1
+    ).first()
     if not remark:
         raise HTTPException(status_code=404, detail="Remark not found")
     return remark
@@ -46,12 +50,13 @@ def update_remark(remark_id: int, remark: RemarkUpdate, db: Session = Depends(ge
     return db_remark
 
 
-# Delete remark (hard delete, because no Is_Active column in table)
+# Soft Delete remark
 @router.delete("/{remark_id}")
 def delete_remark(remark_id: int, db: Session = Depends(get_db)):
     db_remark = db.query(models.Remark).filter(models.Remark.Id_Remark == remark_id).first()
     if not db_remark:
         raise HTTPException(status_code=404, detail="Remark not found")
-    db.delete(db_remark)
+    db_remark.Is_Active = 0  # Soft delete
     db.commit()
-    return {"detail": "Remark deleted"}
+    return {"detail": "Remark soft deleted"}
+

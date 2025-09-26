@@ -5,7 +5,7 @@ from datetime import datetime
 class InspectionBase(BaseModel):
     Warehouse_Id: int
     Manager_Id: int
-    Data: str
+    Data: Optional[str] = None
     Status: str
     Remarks: Optional[str] = None
     Season_Id : int
