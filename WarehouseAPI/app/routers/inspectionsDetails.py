@@ -94,11 +94,14 @@ def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session
     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Inspection not found")
+
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(entity, k, v)
+
     db.commit()
     db.refresh(entity)
     return entity
+
 
 @router.delete("/{inspection_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_inspection(inspection_id: int, db: Session = Depends(get_db)):

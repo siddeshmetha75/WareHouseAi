@@ -14,9 +14,20 @@ class InspectionCreate(InspectionBase):
     pass
 
 class InspectionUpdate(BaseModel):
+    Warehouse_Id: Optional[int] = None
+    Manager_Id: Optional[int] = None
+    Inspector_Id: Optional[int] = None
+    Commodity_Id: Optional[int] = None
+    Season_Id: Optional[int] = None
     Data: Optional[str] = None
     Status: Optional[str] = None
     Remarks: Optional[str] = None
+    Risk_Score: Optional[float] = None
+    Completed_At: Optional[datetime] = None
+    Manager_Approved: Optional[bool] = None
+    Manager_Approved_At: Optional[datetime] = None
+    Manager_Remarks: Optional[str] = None
+
 
 # ...existing code...
 
