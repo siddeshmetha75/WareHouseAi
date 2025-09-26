@@ -8,11 +8,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { Search, MoreHorizontal, Edit, Trash2, Plus, Package } from "lucide-react"
+import { Search, MoreHorizontal, Edit, Trash2, Plus, Package, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createCommodity, deleteCommodity, getCommodities, updateCommodity, type ApiCommodity } from "@/lib/api"
+import { AppShell } from "@/components/layout/app-shell"
+
+type Mode = "list" | "create" | "edit"
+
+interface FormState {
+  IdCommodity?: number
+  Commodity_Name: string
+  CommodityStorage: string
+  Category: string
+  Description: string
+  IsActive: 0 | 1
+}
 
 export default function CommoditiesPage() {
+  const [mode, setMode] = useState<Mode>("list")
   const [rows, setRows] = useState<ApiCommodity[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -20,6 +33,7 @@ export default function CommoditiesPage() {
   const [activeFilter, setActiveFilter] = useState<string>("all")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [form, setForm] = useState<FormState>({ Commodity_Name: "", CommodityStorage: "", Category: "", Description: "", IsActive: 1 })
 
   const load = async () => {
     setLoading(true)
@@ -50,10 +64,25 @@ export default function CommoditiesPage() {
 
   return (
     <ProtectedRoute requiredRoles={["Admin", "Manager"]}>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Commodities</h1>
-          <p className="text-muted-foreground">Manage commodity types and categories</p>
+      <AppShell>
+      <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Commodities</h1>
+            <p className="text-muted-foreground">Manage commodity types and categories</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {mode === "list" && (
+              <Button onClick={() => { setForm({ Commodity_Name: "", CommodityStorage: "", Category: "", Description: "", IsActive: 1 }); setMode("create") }} disabled={loading}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Commodity
+              </Button>
+            )}
+            <Button variant="outline" onClick={load} disabled={loading} className="inline-flex items-center gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -63,10 +92,6 @@ export default function CommoditiesPage() {
                 <CardTitle>Commodity Management</CardTitle>
                 <CardDescription>Manage commodity types available for inspection</CardDescription>
               </div>
-              <Button onClick={() => load()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Commodity
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -74,6 +99,70 @@ export default function CommoditiesPage() {
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
+            )}
+            {mode !== "list" && (
+              <div className="rounded-md border p-4 bg-white mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm mb-1">Commodity Name<span className="text-red-500"> *</span></label>
+                    <Input value={form.Commodity_Name} onChange={(e) => setForm({ ...form, Commodity_Name: e.target.value })} placeholder="Enter commodity name" disabled={loading} required />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Commodity Storage</label>
+                    <Select value={form.CommodityStorage} onValueChange={(v) => setForm({ ...form, CommodityStorage: v })}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="Select storage" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cold">Cold</SelectItem>
+                        <SelectItem value="Normal">Normal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Category</label>
+                    <Input value={form.Category} onChange={(e) => setForm({ ...form, Category: e.target.value })} placeholder="Enter category" disabled={loading} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-1">Description</label>
+                    <Input value={form.Description} onChange={(e) => setForm({ ...form, Description: e.target.value })} placeholder="Enter description" disabled={loading} />
+                  </div>
+                  {/* IsActive hidden from UI as requested */}
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={async () => {
+                    try {
+                      setLoading(true)
+                      setError("")
+                      if (mode === "create") {
+                        await createCommodity({
+                          Commodity_Name: form.Commodity_Name,
+                          CommodityStorage: form.CommodityStorage || undefined,
+                          Category: form.Category || undefined,
+                          Description: form.Description || undefined,
+                          IsActive: form.IsActive,
+                        })
+                      } else if (mode === "edit" && form.IdCommodity) {
+                        await updateCommodity(form.IdCommodity, {
+                          Commodity_Name: form.Commodity_Name,
+                          CommodityStorage: form.CommodityStorage || undefined,
+                          Category: form.Category || undefined,
+                          Description: form.Description || undefined,
+                          IsActive: form.IsActive,
+                        })
+                      }
+                      setMode("list")
+                      setForm({ Commodity_Name: "", CommodityStorage: "", Category: "", Description: "", IsActive: 1 })
+                      await load()
+                    } catch (e: any) {
+                      setError(e?.message || "Failed to save commodity")
+                    } finally {
+                      setLoading(false)
+                    }
+                  }} disabled={loading || !form.Commodity_Name.trim()}>
+                    Save
+                  </Button>
+                  <Button variant="outline" onClick={() => { setMode("list"); setForm({ Commodity_Name: "", CommodityStorage: "", Category: "", Description: "", IsActive: 1 }) }} disabled={loading}>Cancel</Button>
+                </div>
+              </div>
             )}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
               <div className="relative flex-1 max-w-sm">
@@ -110,41 +199,28 @@ export default function CommoditiesPage() {
                     <SelectItem value="Normal">Normal</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={activeFilter} onValueChange={setActiveFilter}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Active" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Button variant="outline" onClick={load}>Apply</Button>
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-white">
               {loading ? (
                 <div className="p-6 text-muted-foreground">Loading...</div>
               ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>IdCommodity</TableHead>
                     <TableHead>Commodity_Name</TableHead>
                     <TableHead>CommodityStorage</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>IsActive</TableHead>
-                    <TableHead>CreatedAt</TableHead>
+                    {/* IsActive hidden from UI as requested */}
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((c) => (
                     <TableRow key={c.IdCommodity}>
-                      <TableCell>{c.IdCommodity}</TableCell>
                       <TableCell className="font-medium flex items-center gap-2">
                         <Package className="h-4 w-4 text-muted-foreground" />
                         {c.Commodity_Name}
@@ -152,8 +228,7 @@ export default function CommoditiesPage() {
                       <TableCell>{c.CommodityStorage || "-"}</TableCell>
                       <TableCell>{c.Category || "-"}</TableCell>
                       <TableCell className="max-w-[240px] truncate" title={c.Description || undefined}>{c.Description || "-"}</TableCell>
-                      <TableCell>{c.IsActive ?? 0}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{c.CreatedAt ? new Date(c.CreatedAt).toLocaleDateString() : "-"}</TableCell>
+                      {/* IsActive hidden from UI as requested */}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -162,7 +237,14 @@ export default function CommoditiesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {/* open edit modal with c */}}>
+                            <DropdownMenuItem onClick={() => { setForm({
+                              IdCommodity: c.IdCommodity,
+                              Commodity_Name: c.Commodity_Name || "",
+                              CommodityStorage: c.CommodityStorage || "",
+                              Category: c.Category || "",
+                              Description: c.Description || "",
+                              IsActive: c.IsActive ? 1 : 0,
+                            }); setMode("edit") }}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
@@ -188,6 +270,7 @@ export default function CommoditiesPage() {
           </CardContent>
         </Card>
       </div>
+      </AppShell>
     </ProtectedRoute>
   )
 }

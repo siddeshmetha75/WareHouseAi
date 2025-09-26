@@ -165,6 +165,18 @@ export async function reviewInspection(
   return data
 }
 
+// Manager per-question remark
+export interface CreateRemarkPayload {
+  Question_Id: number
+  Remarks?: string
+  Status?: string
+}
+
+export async function createRemark(payload: CreateRemarkPayload) {
+  const { data } = await api.post(`/remarks/`, payload)
+  return data
+}
+
 // Update inspection details (answers/remarks/status) for editing flow
 export async function updateInspectionDetails(
   inspectionId: number,
@@ -189,36 +201,44 @@ export interface ApiWarehouse {
   Warehouse_Name: string
   Location: string | null
   Code: string | null
+  Capacity?: number | null
+  Latitude?: number | null
+  Longitude?: number | null
+  Inventory?: string | null
 }
 
 export interface CreateApiWarehouse {
   Warehouse_Name: string
   Location?: string
   Code?: string
+  Capacity?: number
+  Latitude?: number
+  Longitude?: number
+  Inventory?: string
 }
 
 export async function getWarehouses(): Promise<ApiWarehouse[]> {
-  const { data } = await api.get<ApiWarehouse[]>("/api/warehouses")
+  const { data } = await api.get<ApiWarehouse[]>("/warehouses")
   return data
 }
 
 export async function getWarehouse(id: number): Promise<ApiWarehouse> {
-  const { data } = await api.get<ApiWarehouse>(`/api/warehouses/${id}`)
+  const { data } = await api.get<ApiWarehouse>(`/warehouses/${id}`)
   return data
 }
 
 export async function createWarehouse(payload: CreateApiWarehouse): Promise<ApiWarehouse> {
-  const { data } = await api.post<ApiWarehouse>("/api/warehouses", payload)
+  const { data } = await api.post<ApiWarehouse>("/warehouses", payload)
   return data
 }
 
 export async function updateWarehouse(id: number, payload: CreateApiWarehouse): Promise<ApiWarehouse> {
-  const { data } = await api.put<ApiWarehouse>(`/api/warehouses/${id}`, payload)
+  const { data } = await api.put<ApiWarehouse>(`/warehouses/${id}`, payload)
   return data
 }
 
 export async function deleteWarehouse(id: number): Promise<void> {
-  await api.delete(`/users/${id}`)
+  await api.delete(`/warehouses/${id}`)
 }
 
 export interface ApiUser {

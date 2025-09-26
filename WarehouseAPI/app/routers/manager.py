@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import SessionLocal
-from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons
+from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
 from ..schemas.inspection import ApproveRequest
 
 router = APIRouter(prefix="/api", tags=["Manager"])
@@ -149,15 +149,16 @@ def review_inspection(
     cm = db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first() if entity.Commodity_Id else None
     ins = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
 
-    # Fetch related remarks
+    # Fetch related remarks (map by question id)
     remarks_list = []
-    inspection_answers = db.query(InspectionAnswers).filter(InspectionAnswers.Inspection_Id == inspection_id).all()
+    inspection_answers = db.query(InspectionAnswers).filter(InspectionAnswers.inspection_id == inspection_id).all()
     for answer in inspection_answers:
-        answer_remarks = db.query(Remark).filter(Remark.inspection_answer_Id == answer.id).all()
+        # Remark table links to question via Question_Id
+        answer_remarks = db.query(Remark).filter(Remark.Question_Id == answer.question_id, Remark.Is_Active == 1).all()
         for r in answer_remarks:
             remarks_list.append({
                 "question_id": r.Question_Id,
-                "status": answer.Status,  # assuming InspectionAnswers has Status
+                "status": r.Status,
                 "manager_remarks": r.Remarks
             })
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getInspectionDetail, reviewInspection } from "@/lib/api"
+import { getInspectionDetail, reviewInspection, createRemark, type CreateRemarkPayload } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Dialog as ZoomDialog, DialogContent as ZoomDialogContent } from "@/components/ui/dialog"
 import { useMemo, useState } from "react"
@@ -26,6 +26,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
   const [remarks, setRemarks] = useState("")
   const qc = useQueryClient()
   const [answerReviews, setAnswerReviews] = useState<Record<number, { status: "Accepted" | "Rejected" | null; remarks: string }>>({})
+  const [savingQuestionId, setSavingQuestionId] = useState<number | null>(null)
 
   const perAnswerArray = useMemo(() =>
     Object.entries(answerReviews).map(([question_id, v]) => ({
@@ -43,14 +44,29 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
 
   const mutation = useMutation({
     mutationFn: async ({ status }: { status: "Accepted" | "Rejected" }) => {
-      // Include per-question review details; cast to any to accommodate API typing
-      const payload: any = { status, manager_remarks: remarks, per_answers: perAnswerArray }
-      return (reviewInspection as any)(inspectionId, payload)
+      // 1) Save per-question remarks individually
+      if (perAnswerArray.length > 0) {
+        await Promise.all(
+          perAnswerArray.map((pa) =>
+            createRemark({
+              Question_Id: pa.question_id,
+              Remarks: pa.manager_remarks || "",
+              Status: pa.status || undefined,
+            })
+          )
+        )
+      }
+      // 2) Review the inspection (only status + manager_remarks)
+      return reviewInspection(inspectionId, { status, manager_remarks: remarks })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["manager-inspections"] })
       router.push("/manager/inspections")
     },
+  })
+
+  const saveRemarkMutation = useMutation({
+    mutationFn: (payload: CreateRemarkPayload) => createRemark(payload),
   })
 
   if (isLoading) return <ShimmerInspectionDetail />
@@ -214,6 +230,28 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                       placeholder="Optional remarks for this question"
                       className="rounded-md border-gray-300 focus:ring-blue-500"
                     />
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <ModernButton
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const current = answerReviews[answer.question_id]
+                        const payload: CreateRemarkPayload = {
+                          Question_Id: answer.question_id,
+                          Remarks: current?.remarks || "",
+                          Status: current?.status || undefined,
+                        }
+                        setSavingQuestionId(answer.question_id)
+                        saveRemarkMutation.mutate(payload, {
+                          onSettled: () => setSavingQuestionId(null),
+                        })
+                      }}
+                      disabled={savingQuestionId === answer.question_id}
+                      className="inline-flex items-center gap-2 bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                    >
+                      {savingQuestionId === answer.question_id ? "Saving..." : "Save Remark"}
+                    </ModernButton>
                   </div>
                 </div>
               </div>
