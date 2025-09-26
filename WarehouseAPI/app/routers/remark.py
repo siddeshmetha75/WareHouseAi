@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app import models
-from app.schemas.remark import Remark, RemarkCreate, RemarkUpdate
+from app.models import Inspections, Remark as RemarkModel
+from app.schemas.remark import Remark, RemarkCreate, RemarkUpdate, InspectionWithRemarks
 
 router = APIRouter(prefix="/remarks", tags=["Remarks"])
 
@@ -60,3 +61,25 @@ def delete_remark(remark_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Remark soft deleted"}
 
+@router.get("/by-inspection/{inspection_id}", response_model=InspectionWithRemarks)
+def get_inspection_with_remarks(inspection_id: int, db: Session = Depends(get_db)):
+    inspection = db.query(models.Inspections).filter(
+        models.Inspections.Id_Inspections == inspection_id
+    ).first()
+
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    # Fetch related remarks
+    remarks = db.query(RemarkModel).filter(
+        RemarkModel.InspectionsId == inspection_id,
+        RemarkModel.Is_Active == 1
+    ).all()
+
+    # Attach remarks as sub-object
+    return {
+        "Id_Inspections": inspection.Id_Inspections,
+        "Status": inspection.Status,
+        "Remarks": inspection.Remarks,
+        "remarks": remarks
+    }
