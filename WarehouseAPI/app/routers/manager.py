@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import SessionLocal
-from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
+#from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
+from ..models import Inspections, InspectionAnswers,CommoditySeason, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
+
 from ..schemas.inspection import ApproveRequest
 from sqlalchemy.orm import joinedload, contains_eager
 
@@ -321,8 +323,13 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
         joinedload(Inspections.commoditymaster),
         joinedload(Inspections.users),
         joinedload(Inspections.managers),
-        joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.remark),
-        joinedload(Inspections.commoditymaster).joinedload(Commoditymaster.commodity_season).joinedload('seasons')
+        #joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.remark),
+        joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.question).joinedload(Questions.remark),
+        #joinedload(Inspections.commoditymaster).joinedload(Commoditymaster.commodity_season).joinedload('seasons')
+        joinedload(Inspections.commoditymaster)
+    .joinedload(Commoditymaster.commodity_season)
+    .joinedload(CommoditySeason.seasons)
+
     ).filter(Inspections.Id_Inspections == inspection_id).first()
 
     if not inspection:
