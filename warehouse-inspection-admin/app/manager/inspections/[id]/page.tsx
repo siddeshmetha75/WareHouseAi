@@ -52,6 +52,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
               Question_Id: pa.question_id,
               Remarks: pa.manager_remarks || "",
               Status: pa.status || undefined,
+              InspectionsId: inspectionId,
             })
           )
         )
@@ -241,6 +242,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                           Question_Id: answer.question_id,
                           Remarks: current?.remarks || "",
                           Status: current?.status || undefined,
+                          InspectionsId: inspectionId,
                         }
                         setSavingQuestionId(answer.question_id)
                         saveRemarkMutation.mutate(payload, {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { listInspections } from "@/lib/api"
+import { listInspections, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
 import { ModernButton } from "@/components/ui/modern-button"
@@ -10,6 +10,7 @@ import { ShimmerTableComponent } from "@/components/ui/modern-table"
 import { Eye, RefreshCw, Calendar } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useMemo, useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function ReviewedInspectionsPage() {
   const router = useRouter()
@@ -57,6 +58,14 @@ export default function ReviewedInspectionsPage() {
   const handleViewDetails = (inspectionId: number) => {
     router.push(`/manager/inspections/${inspectionId}`)
   }
+
+  // Remarks viewer state and data
+  const [remarksFor, setRemarksFor] = useState<number | null>(null)
+  const { data: remarksData, isLoading: remarksLoading, error: remarksError } = useQuery<InspectionRemarksResponse>({
+    queryKey: ["inspection-remarks", remarksFor],
+    queryFn: () => getInspectionRemarks(remarksFor as number),
+    enabled: remarksFor !== null,
+  })
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
@@ -174,6 +183,14 @@ export default function ReviewedInspectionsPage() {
                         <Eye className="h-4 w-4" />
                         View Details
                       </ModernButton>
+                      <ModernButton
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRemarksFor(i.Id_Inspections)}
+                        className="ml-2 inline-flex items-center gap-2 bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                      >
+                        Remarks
+                      </ModernButton>
                     </div>
                   </div>
                 ))}
@@ -188,6 +205,43 @@ export default function ReviewedInspectionsPage() {
           </ModernCardContent>
         </ModernCard>
       </div>
+
+      {/* Remarks Dialog */}
+      <Dialog open={remarksFor !== null} onOpenChange={(open: boolean) => !open && setRemarksFor(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Per-question Remarks</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {remarksLoading && <div className="text-sm text-gray-500">Loading remarks...</div>}
+            {remarksError && <div className="text-sm text-red-600">Failed to load remarks.</div>}
+            {!remarksLoading && remarksData && (
+              <div className="space-y-2">
+                {remarksData.remarks?.length ? (
+                  remarksData.remarks.map((r: any) => (
+                    <div key={r.Id_Remark} className="rounded-md border border-slate-200 p-3 bg-white">
+                      <div className="text-xs uppercase text-slate-500">Question ID</div>
+                      <div className="text-sm font-medium">{r.Question_Id}</div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-xs uppercase text-slate-500">Status</div>
+                          <div className="text-sm">{r.Status || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase text-slate-500">Remark</div>
+                          <div className="text-sm">{r.Remarks || "—"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500">No remarks found for this inspection.</div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
