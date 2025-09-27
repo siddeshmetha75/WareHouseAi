@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from ..database import SessionLocal
 #from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
-from ..models import Inspections, InspectionAnswers,CommoditySeason, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
+from ..models import Inspections, InspectionAnswers,Evidence, CommoditySeason, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark, Managers
 
 from ..schemas.inspection import ApproveRequest
 from sqlalchemy.orm import joinedload, contains_eager
@@ -320,16 +320,17 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
     # Fetch inspection with related objects using joinedload
     inspection = db.query(Inspections).options(
         joinedload(Inspections.warehouses),
-        joinedload(Inspections.commoditymaster),
-        joinedload(Inspections.users),
-        joinedload(Inspections.managers),
-        #joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.remark),
-        joinedload(Inspections.inspection_answers).joinedload(InspectionAnswers.question).joinedload(Questions.remark),
-        #joinedload(Inspections.commoditymaster).joinedload(Commoditymaster.commodity_season).joinedload('seasons')
         joinedload(Inspections.commoditymaster)
-    .joinedload(Commoditymaster.commodity_season)
-    .joinedload(CommoditySeason.seasons)
+            .joinedload(Commoditymaster.commodity_season)
+            .joinedload(CommoditySeason.seasons),
+        joinedload(Inspections.users),
+        #joinedload(Inspections.managers).joinedload(Users),
+        joinedload(Inspections.managers).joinedload(Managers.users),
 
+        joinedload(Inspections.inspection_answers)
+            .joinedload(InspectionAnswers.question)
+            .joinedload(Questions.remark),
+        joinedload(Inspections.evidence)
     ).filter(Inspections.Id_Inspections == inspection_id).first()
 
     if not inspection:
@@ -338,22 +339,12 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
     # Season info
     season = db.query(Seasons).filter(Seasons.IdSeason == inspection.Season_Id).first()
 
-    # Build per_answers list
-    # per_answers = []
-    # for ans in inspection.inspection_answers:
-    #     question = ans.question  # the related Question object
-    #     if question:
-    #         per_answers.append({
-    #             "question_id": question.id,  # adjust field name
-    #             "status": ans.Status,  # if you have a Status field in InspectionAnswers
-    #             "manager_remarks": question.remark  # or ans.remarks if that’s where manager remarks are
-    #         })
+    # Build per_answers list (answers + remarks + evidence per question)
     per_answers = []
-
     for ans in inspection.inspection_answers:
         question = ans.question
         if question:
-            # For each remark related to this question & inspection
+            # Remarks for this question & inspection
             question_remarks = [
                 {
                     "remark_id": r.Id_Remark,
@@ -363,14 +354,36 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
                 for r in question.remark if r.InspectionsId == inspection.Id_Inspections
             ]
 
-        per_answers.append({
-            "question_id": question.id,
-            "question_text": question.text_,
-            "answer": ans.answer,  # actual answer from InspectionAnswers
-            "remarks": question_remarks  # list of remarks
-        })
+            # Evidence for this question
+            question_evidence = [
+                {
+                    "id": ev.id,
+                    "file_path": ev.file_path,
+                    "file_type": ev.file_type,
+                    "uploaded_at": ev.uploaded_at
+                }
+                for ev in inspection.evidence if ev.question_id == question.id
+            ]
 
+            per_answers.append({
+                "question_id": question.id,
+                "question_text": question.text_,
+                "answer": ans.answer,
+                "remarks": question_remarks,
+                "evidence": question_evidence
+            })
 
+    # Build top-level evidence list
+    evidence_list = [
+        {
+            "id": ev.id,
+            "file_path": ev.file_path,
+            "file_type": ev.file_type,
+            "question_id": ev.question_id,
+            "uploaded_at": ev.uploaded_at
+        }
+        for ev in inspection.evidence
+    ]
 
     return {
         "Id_Inspections": inspection.Id_Inspections,
@@ -399,5 +412,6 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
             "id": season.IdSeason if season else None,
             "name": season.Season_Name if season else None
         },
-        "per_answers": per_answers
+        "per_answers": per_answers,
+        "evidence": evidence_list
     }
