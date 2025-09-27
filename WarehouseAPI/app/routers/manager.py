@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..database import SessionLocal
 from ..models import Inspections, InspectionAnswers, Questions, UserWarehouseMap, Users, Warehouses, Commoditymaster, Evidence, Seasons, Remark
 from ..schemas.inspection import ApproveRequest
+from sqlalchemy.orm import joinedload, contains_eager
 
 router = APIRouter(prefix="/api", tags=["Manager"])
 
@@ -228,87 +229,87 @@ def get_manager_inspections(manager_id: int, status: Optional[str] = None, db: S
     return result
 
 
-@router.get("/inspections/{inspection_id}")
-def get_inspection_detail(inspection_id: int, request: Request, db: Session = Depends(get_db)):
-    entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
-    if not entity:
-        raise HTTPException(status_code=404, detail="Inspection not found")
+# @router.get("/inspections/{inspection_id}")
+# def get_inspection_detail(inspection_id: int, request: Request, db: Session = Depends(get_db)):
+#     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
+#     if not entity:
+#         raise HTTPException(status_code=404, detail="Inspection not found")
 
-    answers = (
-        db.query(InspectionAnswers, Questions)
-        .join(Questions, Questions.id == InspectionAnswers.question_id)
-        .filter(InspectionAnswers.inspection_id == inspection_id)
-        .all()
-    )
-    evidence_rows = db.query(Evidence).filter(Evidence.inspection_id == inspection_id).all()
+#     answers = (
+#         db.query(InspectionAnswers, Questions)
+#         .join(Questions, Questions.id == InspectionAnswers.question_id)
+#         .filter(InspectionAnswers.inspection_id == inspection_id)
+#         .all()
+#     )
+#     evidence_rows = db.query(Evidence).filter(Evidence.inspection_id == inspection_id).all()
 
-    # Resolve human-readable names
-    warehouse = db.query(Warehouses).filter(Warehouses.Id_Warehouse == entity.Warehouse_Id).first()
-    commodity = (
-        db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first()
-        if entity.Commodity_Id is not None
-        else None
-    )
-    inspector = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
-    season = (
-        db.query(Seasons).filter(Seasons.IdSeason == entity.Season_Id).first()
-        if entity.Season_Id
-        else None
-    )
+#     # Resolve human-readable names
+#     warehouse = db.query(Warehouses).filter(Warehouses.Id_Warehouse == entity.Warehouse_Id).first()
+#     commodity = (
+#         db.query(Commoditymaster).filter(Commoditymaster.IdCommodity == entity.Commodity_Id).first()
+#         if entity.Commodity_Id is not None
+#         else None
+#     )
+#     inspector = db.query(Users).filter(Users.idusers == entity.Inspector_Id).first()
+#     season = (
+#         db.query(Seasons).filter(Seasons.IdSeason == entity.Season_Id).first()
+#         if entity.Season_Id
+#         else None
+#     )
 
-    base_url = str(request.base_url).rstrip('/')
+#     base_url = str(request.base_url).rstrip('/')
 
-    def to_file_url(path: str | None) -> str | None:
-        if not path:
-            return None
-        import os
-        file_name = os.path.basename(path)
-        return f"{base_url}/uploads/{file_name}"
+#     def to_file_url(path: str | None) -> str | None:
+#         if not path:
+#             return None
+#         import os
+#         file_name = os.path.basename(path)
+#         return f"{base_url}/uploads/{file_name}"
 
-    return {
-        "inspection": {
-            "id": entity.Id_Inspections,
-            "warehouse": {"id": warehouse.Id_Warehouse, "name": warehouse.Warehouse_Name} if warehouse else None,
-            "commodity": (
-                {"id": commodity.IdCommodity, "name": commodity.Commodity_Name} if commodity else None
-            ),
-            "inspector": {
-                "id": inspector.idusers if inspector else None,
-                "username": inspector.UserName if inspector else None,
-                "full_name": inspector.Full_Name if inspector else None,
-            },
-            "status": entity.Status,
-            "manager_remarks": entity.Manager_Remarks,
-            "Season_Id": entity.Season_Id,
-            "SeasonName": season.Season_Name if season else None,
-        },
-        "answers": [
-            {
-                "question_id": a.question_id,
-                "question_text": q.text_,
-                "answer": a.answer,
-                "remarks": a.remarks,
-                "evidence": [
-                    {
-                        "id": e.id,
-                        "file_url": to_file_url(e.file_path),
-                        "file_type": e.file_type,
-                    }
-                    for e in evidence_rows
-                    if e.question_id == a.question_id
-                ],
-            }
-            for a, q in answers
-        ],
-        "evidence": [
-            {
-                "id": e.id,
-                "file_url": to_file_url(e.file_path),
-                "file_type": e.file_type,
-            }
-            for e in evidence_rows
-        ],
-    }
+#     return {
+#         "inspection": {
+#             "id": entity.Id_Inspections,
+#             "warehouse": {"id": warehouse.Id_Warehouse, "name": warehouse.Warehouse_Name} if warehouse else None,
+#             "commodity": (
+#                 {"id": commodity.IdCommodity, "name": commodity.Commodity_Name} if commodity else None
+#             ),
+#             "inspector": {
+#                 "id": inspector.idusers if inspector else None,
+#                 "username": inspector.UserName if inspector else None,
+#                 "full_name": inspector.Full_Name if inspector else None,
+#             },
+#             "status": entity.Status,
+#             "manager_remarks": entity.Manager_Remarks,
+#             "Season_Id": entity.Season_Id,
+#             "SeasonName": season.Season_Name if season else None,
+#         },
+#         "answers": [
+#             {
+#                 "question_id": a.question_id,
+#                 "question_text": q.text_,
+#                 "answer": a.answer,
+#                 "remarks": a.remarks,
+#                 "evidence": [
+#                     {
+#                         "id": e.id,
+#                         "file_url": to_file_url(e.file_path),
+#                         "file_type": e.file_type,
+#                     }
+#                     for e in evidence_rows
+#                     if e.question_id == a.question_id
+#                 ],
+#             }
+#             for a, q in answers
+#         ],
+#         "evidence": [
+#             {
+#                 "id": e.id,
+#                 "file_url": to_file_url(e.file_path),
+#                 "file_type": e.file_type,
+#             }
+#             for e in evidence_rows
+#         ],
+#     }
 
 
 @router.get("/inspections/{inspection_id}")

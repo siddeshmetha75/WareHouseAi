@@ -2,15 +2,17 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi import Form
-
+from datetime import datetime
 from ..database import SessionLocal
-from ..models import Warehouses, UserWarehouseMap, Questions, Inspections, InspectionAnswers, Evidence, Users, Commoditymaster, Seasons
+from ..models import Warehouses, UserWarehouseMap, Questions, Inspections, InspectionAnswers, Evidence, Users, Commoditymaster, Seasons, Managers
+
 from ..schemas.inspection import (
     InspectionCreateRequest,
     InspectionCreateResponse,
     InspectionAnswerCreate,
     InspectionWithAnswersCreate,
     InspectionCreateWithAnswersResponse,
+    InspectionUpdateRequest
 )
 from ..auth import get_current_user
 
@@ -64,11 +66,14 @@ def create_inspection(
     )
     if not mapping:
         raise HTTPException(status_code=400, detail="No manager mapping found for inspector and warehouse")
+    manager = db.query(Managers).filter(Managers.User_Id == mapping.Manager_id).first()
+    if not manager:
+        raise HTTPException(status_code=400, detail="Manager record not found")
 
     entity = Inspections(
         Warehouse_Id=payload.warehouse_id,
         Inspector_Id=payload.inspector_id,
-        Manager_Id=mapping.Manager_id,
+        Manager_Id=manager.Id_Manager,
         Status="Pending",
         Commodity_Id=payload.commodity_id,
         Season_Id=payload.Season_Id,
@@ -241,3 +246,44 @@ def upload_evidence(
     return {"status": "success", "evidence_id": ev.id}
 
 
+@router.put("/inspections/{inspection_id}")
+def update_inspection(
+    inspection_id: int,
+    payload: InspectionUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    inspection = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    # Prevent any modification if manager already approved
+    if inspection.Manager_Approved:
+        raise HTTPException(status_code=403, detail="Cannot modify approved inspection")
+
+    # Allow updating any of the allowed fields
+    for field in ["Status", "Remarks", "Risk_Score", "Completed_At", "Manager_Approved", "Manager_Remarks"]:
+        if getattr(payload, field, None) is not None:
+            setattr(inspection, field, getattr(payload, field))
+
+    # Update answers if provided
+    if payload.answers:
+        for ans in payload.answers:
+            existing = db.query(InspectionAnswers).filter(
+                InspectionAnswers.inspection_id == inspection_id,
+                InspectionAnswers.question_id == ans.question_id
+            ).first()
+            if existing:
+                existing.answer = ans.answer
+                existing.remarks = ans.remarks
+            else:
+                new_ans = InspectionAnswers(
+                    inspection_id=inspection_id,
+                    question_id=ans.question_id,
+                    answer=ans.answer,
+                    remarks=ans.remarks
+                )
+                db.add(new_ans)
+
+    db.commit()
+    db.refresh(inspection)
+    return {"status": "success", "inspection_id": inspection.Id_Inspections}

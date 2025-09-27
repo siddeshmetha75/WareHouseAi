@@ -112,3 +112,12 @@ class QuestionResponse(BaseModel):
 class ApproveRequest(BaseModel):
     approved: bool
     remarks: Optional[str] = None
+
+class InspectionUpdateRequest(BaseModel):
+    Status: Optional[str]
+    Remarks: Optional[str]
+    Risk_Score: Optional[float]
+    Manager_Approved: Optional[int]
+    Manager_Remarks: Optional[str]
+    Completed_At: Optional[datetime]
+    answers: Optional[list["InspectionAnswerCreate"]]
