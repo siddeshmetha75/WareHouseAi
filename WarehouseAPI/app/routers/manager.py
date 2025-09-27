@@ -339,14 +339,38 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
     season = db.query(Seasons).filter(Seasons.IdSeason == inspection.Season_Id).first()
 
     # Build per_answers list
+    # per_answers = []
+    # for ans in inspection.inspection_answers:
+    #     question = ans.question  # the related Question object
+    #     if question:
+    #         per_answers.append({
+    #             "question_id": question.id,  # adjust field name
+    #             "status": ans.Status,  # if you have a Status field in InspectionAnswers
+    #             "manager_remarks": question.remark  # or ans.remarks if that’s where manager remarks are
+    #         })
     per_answers = []
+
     for ans in inspection.inspection_answers:
-        for r in ans.remark:
-            per_answers.append({
-                "question_id": r.Question_Id,
-                "status": ans.remarks,  # or ans.Status if you have it in InspectionAnswers
-                "manager_remarks": r.Remarks
-            })
+        question = ans.question
+        if question:
+            # For each remark related to this question & inspection
+            question_remarks = [
+                {
+                    "remark_id": r.Id_Remark,
+                    "status": r.Status,
+                    "manager_remarks": r.Remarks
+                }
+                for r in question.remark if r.InspectionsId == inspection.Id_Inspections
+            ]
+
+        per_answers.append({
+            "question_id": question.id,
+            "question_text": question.text_,
+            "answer": ans.answer,  # actual answer from InspectionAnswers
+            "remarks": question_remarks  # list of remarks
+        })
+
+
 
     return {
         "Id_Inspections": inspection.Id_Inspections,
