@@ -170,11 +170,30 @@ export interface CreateRemarkPayload {
   Question_Id: number
   Remarks?: string
   Status?: string
+  InspectionsId?: number
 }
 
 export async function createRemark(payload: CreateRemarkPayload) {
   const { data } = await api.post(`/remarks/`, payload)
   return data
+}
+
+export interface InspectionRemarksResponse {
+  Id_Inspections: number
+  Status: string
+  Remarks: string | null
+  remarks: Array<{
+    Question_Id: number
+    Remarks: string | null
+    Status: string | null
+    Id_Remark: number
+    InspectionsId: number
+  }>
+}
+
+export async function getInspectionRemarks(inspectionId: number): Promise<InspectionRemarksResponse> {
+  const { data } = await api.get(`/remarks/by-inspection/${inspectionId}`)
+  return data as InspectionRemarksResponse
 }
 
 // Update inspection details (answers/remarks/status) for editing flow

@@ -79,7 +79,7 @@ export default function ManagerInspectionsPage() {
                   variant="outline"
                   onClick={() => refetch()}
                   disabled={isFetching}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
                 >
                   <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
                   Refresh
