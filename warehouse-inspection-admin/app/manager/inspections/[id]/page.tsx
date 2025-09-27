@@ -1,7 +1,7 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getInspectionDetail, reviewInspection, createRemark, type CreateRemarkPayload } from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+import { getInspectionDetail, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Dialog as ZoomDialog, DialogContent as ZoomDialogContent } from "@/components/ui/dialog"
 import { useMemo, useState } from "react"
@@ -11,7 +11,7 @@ import { ModernButton } from "@/components/ui/modern-button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EvidenceDisplay } from "@/components/ui/evidence-display"
 import { ShimmerInspectionDetail } from "@/components/ui/shimmer"
-import { Textarea } from "@/components/ui/textarea"
+ 
 
 interface InspectionDetailPageProps {
   params: {
@@ -23,18 +23,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
   const router = useRouter()
   const inspectionId = parseInt(params.id)
   const [viewer, setViewer] = useState<null | { type: "image" | "video"; src: string }>(null)
-  const [remarks, setRemarks] = useState("")
-  const qc = useQueryClient()
-  const [answerReviews, setAnswerReviews] = useState<Record<number, { status: "Accepted" | "Rejected" | null; remarks: string }>>({})
-  const [savingQuestionId, setSavingQuestionId] = useState<number | null>(null)
-
-  const perAnswerArray = useMemo(() =>
-    Object.entries(answerReviews).map(([question_id, v]) => ({
-      question_id: Number(question_id),
-      status: v.status,
-      manager_remarks: v.remarks || "",
-    })),
-  [answerReviews])
+  // Read-only view: we fetch manager remarks for mapping and show them without edit controls
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["inspection-detail", inspectionId],
@@ -42,33 +31,20 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
     enabled: !!inspectionId,
   })
 
-  const mutation = useMutation({
-    mutationFn: async ({ status }: { status: "Accepted" | "Rejected" }) => {
-      // 1) Save per-question remarks individually
-      if (perAnswerArray.length > 0) {
-        await Promise.all(
-          perAnswerArray.map((pa) =>
-            createRemark({
-              Question_Id: pa.question_id,
-              Remarks: pa.manager_remarks || "",
-              Status: pa.status || undefined,
-              InspectionsId: inspectionId,
-            })
-          )
-        )
-      }
-      // 2) Review the inspection (only status + manager_remarks)
-      return reviewInspection(inspectionId, { status, manager_remarks: remarks })
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["manager-inspections"] })
-      router.push("/manager/inspections")
-    },
+  const { data: remarksData } = useQuery<InspectionRemarksResponse>({
+    queryKey: ["inspection-remarks", inspectionId],
+    queryFn: () => getInspectionRemarks(inspectionId),
+    enabled: !!inspectionId,
   })
 
-  const saveRemarkMutation = useMutation({
-    mutationFn: (payload: CreateRemarkPayload) => createRemark(payload),
-  })
+  // Hooks must be declared before any early returns
+  const remarksByQuestion = useMemo(() => {
+    const map = new Map<number, { Status?: string | null; Remarks?: string | null }>()
+    remarksData?.remarks?.forEach((r: any) => {
+      map.set(r.Question_Id, { Status: r.Status, Remarks: r.Remarks })
+    })
+    return map
+  }, [remarksData])
 
   if (isLoading) return <ShimmerInspectionDetail />
   if (!detail) return (
@@ -186,74 +162,19 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                       />
                     </div>
                   )}
-                  {/* Manager per-question review */}
+                  {/* Manager per-question review (read-only) */}
                   <div className="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <p className="text-sm font-medium text-slate-700 mb-2">Manager Review for this question</p>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <ModernButton
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setAnswerReviews((prev) => ({
-                            ...prev,
-                            [answer.question_id]: { status: "Accepted", remarks: prev[answer.question_id]?.remarks || "" },
-                          }))
-                        }
-                        className={`h-8 px-3 ${answerReviews[answer.question_id]?.status === "Accepted" ? "bg-green-100 border-green-300 text-green-700" : "bg-white text-gray-700 border-gray-300 hover:bg-green-50 hover:text-green-700"}`}
-                      >
-                        Accept
-                      </ModernButton>
-                      <ModernButton
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setAnswerReviews((prev) => ({
-                            ...prev,
-                            [answer.question_id]: { status: "Rejected", remarks: prev[answer.question_id]?.remarks || "" },
-                          }))
-                        }
-                        className={`h-8 px-3 ${answerReviews[answer.question_id]?.status === "Rejected" ? "bg-red-100 border-red-300 text-red-700" : "bg-white text-gray-700 border-gray-300 hover:bg-red-50 hover:text-red-700"}`}
-                      >
-                        Reject
-                      </ModernButton>
-                      {answerReviews[answer.question_id]?.status && (
-                        <span className="ml-1 text-xs text-slate-600">Selected: {answerReviews[answer.question_id]?.status}</span>
-                      )}
+                    <p className="text-sm font-medium text-slate-700 mb-2">Manager Review</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-xs uppercase text-slate-500">Status</div>
+                        <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Status || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase text-slate-500">Remark</div>
+                        <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Remarks || "—"}</div>
+                      </div>
                     </div>
-                    <Textarea
-                      value={answerReviews[answer.question_id]?.remarks || ""}
-                      onChange={(e) =>
-                        setAnswerReviews((prev) => ({
-                          ...prev,
-                          [answer.question_id]: { status: prev[answer.question_id]?.status || null, remarks: e.target.value },
-                        }))
-                      }
-                      placeholder="Optional remarks for this question"
-                      className="rounded-md border-gray-300 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <ModernButton
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const current = answerReviews[answer.question_id]
-                        const payload: CreateRemarkPayload = {
-                          Question_Id: answer.question_id,
-                          Remarks: current?.remarks || "",
-                          Status: current?.status || undefined,
-                          InspectionsId: inspectionId,
-                        }
-                        setSavingQuestionId(answer.question_id)
-                        saveRemarkMutation.mutate(payload, {
-                          onSettled: () => setSavingQuestionId(null),
-                        })
-                      }}
-                      disabled={savingQuestionId === answer.question_id}
-                      className="inline-flex items-center gap-2 bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
-                    >
-                      {savingQuestionId === answer.question_id ? "Saving..." : "Save Remark"}
-                    </ModernButton>
                   </div>
                 </div>
               </div>
@@ -279,40 +200,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
         </ModernCard>
       )}
 
-      {/* Manager Review Actions */}
-      <ModernCard>
-        <ModernCardHeader>
-          <ModernCardTitle>Manager Review</ModernCardTitle>
-        </ModernCardHeader>
-        <ModernCardContent>
-          <div className="space-y-4">
-            <Textarea
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter your remarks about this inspection (optional)"
-              className="rounded-lg border-gray-300 focus:ring-blue-500"
-            />
-            <div className="flex justify-end gap-3">
-              <ModernButton
-                variant="reject"
-                onClick={() => mutation.mutate({ status: "Rejected" })}
-                disabled={mutation.isPending}
-                className="flex items-center gap-2"
-              >
-                Reject
-              </ModernButton>
-              <ModernButton
-                variant="approve"
-                onClick={() => mutation.mutate({ status: "Accepted" })}
-                disabled={mutation.isPending}
-                className="flex items-center gap-2"
-              >
-                Approve
-              </ModernButton>
-            </div>
-          </div>
-        </ModernCardContent>
-      </ModernCard>
+      {/* Manager Review Actions removed for read-only view */}
 
       {/* Fullscreen preview for image/video */}
       <ZoomDialog open={!!viewer} onOpenChange={(open) => !open && setViewer(null)}>
