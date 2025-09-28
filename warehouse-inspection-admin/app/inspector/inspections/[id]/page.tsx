@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail, deleteEvidence, uploadEvidence } from "@/lib/api"
+import { getInspectionDetail, deleteEvidence, uploadEvidence, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,29 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
     queryFn: () => getInspectionDetail(id),
     enabled: Number.isFinite(id),
   })
+
+  // Manager per-question remarks (read-only)
+  const { data: remarksData } = useQuery<InspectionRemarksResponse>({
+    queryKey: ["inspection-remarks", id],
+    queryFn: () => getInspectionRemarks(id),
+    enabled: Number.isFinite(id),
+  })
+  const remarksByQuestion = useMemo(() => {
+    const map = new Map<number, Array<{ Id_Remark: number; Remarks?: string | null; Status?: string | null; Question_Id: number; Is_Active?: number | null; InspectionsId: number }>>()
+    remarksData?.remarks?.forEach((r: any) => {
+      const arr = map.get(r.Question_Id) || []
+      arr.push({
+        Id_Remark: r.Id_Remark,
+        Remarks: r.Remarks,
+        Status: r.Status,
+        Question_Id: r.Question_Id,
+        Is_Active: r.Is_Active,
+        InspectionsId: r.InspectionsId,
+      })
+      map.set(r.Question_Id, arr)
+    })
+    return map
+  }, [remarksData])
 
   if (isLoading || !data) return <p className="p-6">Loading...</p>
 
@@ -40,6 +63,13 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
   }
   const closePreview = () => {
     setViewer(null)
+  }
+  const statusPillClasses = (s?: string | null) => {
+    const v = (s || "").toString().toLowerCase()
+    if (v === "accepted") return "mr-2 inline-block rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 border border-green-200"
+    if (v === "rejected") return "mr-2 inline-block rounded bg-red-100 px-2 py-0.5 text-xs text-red-700 border border-red-200"
+    if (v === "pending") return "mr-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 border border-amber-200"
+    return "mr-2 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200"
   }
   const onDeleteEvidence = async (evidenceId: number) => {
     try {
@@ -124,14 +154,29 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
               <div key={a.question_id} className="rounded-xl shadow p-4">
                 <p className="font-semibold">{a.question_text}</p>
                 <p>Answer: {a.answer ?? "—"}</p>
-                {Array.isArray(a.remarks) ? (
+                {/* Manager Review: prefer remarks API per question, fallback to embedded */}
+                {remarksByQuestion.get(a.question_id)?.length ? (
+                  <div className="mt-2">
+                    <p className="font-medium">Manager Review</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {remarksByQuestion.get(a.question_id)!.map((r) => (
+                        <li key={r.Id_Remark} className="text-sm text-gray-700">
+                          {r.Status ? (
+                            <span className={statusPillClasses(r.Status)}>{r.Status}</span>
+                          ) : null}
+                          {r.Remarks || "—"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : Array.isArray(a.remarks) ? (
                   a.remarks.length > 0 ? (
                     <div className="mt-2">
-                      <p className="font-medium">Manager Remarks</p>
+                      <p className="font-medium">Manager Review</p>
                       <ul className="list-disc pl-5 space-y-1">
                         {a.remarks.map((r: any, idx: number) => (
                           <li key={idx} className="text-sm text-gray-700">
-                            {r.status ? (<span className="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200">{r.status}</span>) : null}
+                            {r.status ? (<span className={statusPillClasses(r.status)}>{r.status}</span>) : null}
                             {r.manager_remarks || r.Remarks || "—"}
                           </li>
                         ))}

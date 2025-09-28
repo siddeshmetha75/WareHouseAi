@@ -239,6 +239,11 @@ export async function getInspectionRemarks(inspectionId: number): Promise<Inspec
   return data as InspectionRemarksResponse
 }
 
+export async function updateRemark(remarkId: number, payload: Partial<CreateRemarkPayload>) {
+  const { data } = await api.put(`/remarks/${remarkId}`, payload)
+  return data
+}
+
 // Update inspection details (answers/remarks/status) for editing flow
 export async function updateInspectionDetails(
   inspectionId: number,

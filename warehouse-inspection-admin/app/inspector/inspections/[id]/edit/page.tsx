@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail, uploadEvidence, updateInspectionDetails, getQuestions, type ApiQuestion, deleteEvidence } from "@/lib/api"
+import { getInspectionDetail, uploadEvidence, updateInspectionDetails, getQuestions, type ApiQuestion, deleteEvidence, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -35,6 +35,37 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
     queryKey: ["questions"],
     queryFn: getQuestions,
   })
+
+  // Manager per-question remarks (read-only display)
+  const { data: remarksData } = useQuery<InspectionRemarksResponse>({
+    queryKey: ["inspection-remarks", id],
+    queryFn: () => getInspectionRemarks(id),
+    enabled: isFinite(id) && id > 0,
+  })
+  const remarksByQuestion = useMemo(() => {
+    const map = new Map<number, Array<{ Id_Remark: number; Remarks?: string | null; Status?: string | null; Question_Id: number; Is_Active?: number | null; InspectionsId: number }>>()
+    remarksData?.remarks?.forEach((r: any) => {
+      const arr = map.get(r.Question_Id) || []
+      arr.push({
+        Id_Remark: r.Id_Remark,
+        Remarks: r.Remarks,
+        Status: r.Status,
+        Question_Id: r.Question_Id,
+        Is_Active: r.Is_Active,
+        InspectionsId: r.InspectionsId,
+      })
+      map.set(r.Question_Id, arr)
+    })
+    return map
+  }, [remarksData])
+
+  const statusPillClasses = (s?: string | null) => {
+    const v = (s || "").toString().toLowerCase()
+    if (v === "accepted") return "mr-2 inline-block rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 border border-green-200"
+    if (v === "rejected") return "mr-2 inline-block rounded bg-red-100 px-2 py-0.5 text-xs text-red-700 border border-red-200"
+    if (v === "pending") return "mr-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 border border-amber-200"
+    return "mr-2 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200"
+  }
 
   const [answers, setAnswers] = useState<Record<number, AnswerDraft>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -251,7 +282,20 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                                 placeholder="Enter remarks"
                               />
                             </div>
-                            {qa.manager_remarks || qa.Manager_Remarks || qa.manager_remark ? (
+                            {/* Manager Review (read-only): prefer remarks API; fallback to existing single remark field */}
+                            {remarksByQuestion.get(qa.question_id)?.length ? (
+                              <div className="text-sm text-gray-700">
+                                <div className="text-xs uppercase text-slate-500 mb-1">Manager Review</div>
+                                <ul className="list-disc pl-5 space-y-1">
+                                  {remarksByQuestion.get(qa.question_id)!.map((r) => (
+                                    <li key={r.Id_Remark}>
+                                      {r.Status ? <span className={statusPillClasses(r.Status)}>{r.Status}</span> : null}
+                                      {r.Remarks || "—"}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : (qa.manager_remarks || qa.Manager_Remarks || qa.manager_remark) ? (
                               <div className="text-sm text-gray-600">
                                 <span className="text-muted-foreground">Manager Remark: </span>
                                 {qa.manager_remarks || qa.Manager_Remarks || qa.manager_remark}

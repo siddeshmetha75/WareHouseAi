@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { listInspections, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
+import { listInspections, getInspectionRemarks, type InspectionRemarksResponse, getQuestions, type ApiQuestion } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
 import { ModernButton } from "@/components/ui/modern-button"
@@ -66,6 +66,20 @@ export default function ReviewedInspectionsPage() {
     queryFn: () => getInspectionRemarks(remarksFor as number),
     enabled: remarksFor !== null,
   })
+
+  // Load questions to resolve Question_Id -> question text
+  const { data: questions = [] } = useQuery<ApiQuestion[]>({
+    queryKey: ["questions"],
+    queryFn: getQuestions,
+  })
+  const questionTextById = useMemo(() => {
+    const m = new Map<number, string>()
+    ;(questions || []).forEach((q: any) => {
+      const text = (q.text ?? (q as any).text_ ?? "").toString()
+      m.set(q.id, text)
+    })
+    return m
+  }, [questions])
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
@@ -220,8 +234,8 @@ export default function ReviewedInspectionsPage() {
                 {remarksData.remarks?.length ? (
                   remarksData.remarks.map((r: any) => (
                     <div key={r.Id_Remark} className="rounded-md border border-slate-200 p-3 bg-white">
-                      <div className="text-xs uppercase text-slate-500">Question ID</div>
-                      <div className="text-sm font-medium">{r.Question_Id}</div>
+                      <div className="text-xs uppercase text-slate-500">Question</div>
+                      <div className="text-sm font-medium">{questionTextById.get(r.Question_Id) || `Question #${r.Question_Id}`}</div>
                       <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <div className="text-xs uppercase text-slate-500">Status</div>

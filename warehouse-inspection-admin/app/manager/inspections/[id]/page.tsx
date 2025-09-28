@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail, getInspectionRemarks, type InspectionRemarksResponse } from "@/lib/api"
+import { getInspectionDetail, getInspectionRemarks, type InspectionRemarksResponse, createRemark, updateRemark, reviewInspection } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Dialog as ZoomDialog, DialogContent as ZoomDialogContent } from "@/components/ui/dialog"
 import { useMemo, useState } from "react"
@@ -25,13 +25,13 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
   const [viewer, setViewer] = useState<null | { type: "image" | "video"; src: string }>(null)
   // Read-only view: we fetch manager remarks for mapping and show them without edit controls
 
-  const { data: detail, isLoading } = useQuery({
+  const { data: detail, isLoading, refetch } = useQuery({
     queryKey: ["inspection-detail", inspectionId],
     queryFn: () => getInspectionDetail(inspectionId),
     enabled: !!inspectionId,
   })
 
-  const { data: remarksData } = useQuery<InspectionRemarksResponse>({
+  const { data: remarksData, refetch: refetchRemarks } = useQuery<InspectionRemarksResponse>({
     queryKey: ["inspection-remarks", inspectionId],
     queryFn: () => getInspectionRemarks(inspectionId),
     enabled: !!inspectionId,
@@ -39,12 +39,40 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
 
   // Hooks must be declared before any early returns
   const remarksByQuestion = useMemo(() => {
-    const map = new Map<number, { Status?: string | null; Remarks?: string | null }>()
+    const map = new Map<number, { Id_Remark?: number; Status?: string | null; Remarks?: string | null }>()
     remarksData?.remarks?.forEach((r: any) => {
-      map.set(r.Question_Id, { Status: r.Status, Remarks: r.Remarks })
+      map.set(r.Question_Id, { Id_Remark: r.Id_Remark, Status: r.Status, Remarks: r.Remarks })
     })
     return map
   }, [remarksData])
+
+  // Local edit buffers for per-question remark
+  const [editStatus, setEditStatus] = useState<Record<number, string>>({})
+  const [editText, setEditText] = useState<Record<number, string>>({})
+  const [saving, setSaving] = useState<Record<number, boolean>>({})
+  const [reviewText, setReviewText] = useState<string>("")
+  const [reviewBusy, setReviewBusy] = useState<boolean>(false)
+
+  const saveRemark = async (questionId: number) => {
+    try {
+      setSaving((s) => ({ ...s, [questionId]: true }))
+      const current = remarksByQuestion.get(questionId)
+      const payload = {
+        Question_Id: questionId,
+        InspectionsId: inspectionId,
+        Status: editStatus[questionId] ?? current?.Status ?? null,
+        Remarks: editText[questionId] ?? current?.Remarks ?? null,
+      }
+      if (current?.Id_Remark) {
+        await updateRemark(current.Id_Remark, payload)
+      } else {
+        await createRemark(payload)
+      }
+      await Promise.all([refetchRemarks(), refetch()])
+    } finally {
+      setSaving((s) => ({ ...s, [questionId]: false }))
+    }
+  }
 
   if (isLoading) return <ShimmerInspectionDetail />
   if (!detail) return (
@@ -162,18 +190,55 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                       />
                     </div>
                   )}
-                  {/* Manager per-question review (read-only) */}
+                  {/* Manager per-question review */}
                   <div className="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
                     <p className="text-sm font-medium text-slate-700 mb-2">Manager Review</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Read-only snapshot */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                       <div>
-                        <div className="text-xs uppercase text-slate-500">Status</div>
+                        <div className="text-xs uppercase text-slate-500">Current Status</div>
                         <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Status || "—"}</div>
                       </div>
                       <div>
-                        <div className="text-xs uppercase text-slate-500">Remark</div>
+                        <div className="text-xs uppercase text-slate-500">Current Remark</div>
                         <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Remarks || "—"}</div>
                       </div>
+                    </div>
+                    {/* Editable controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs uppercase text-slate-500 mb-1">Set Status</label>
+                        <select
+                          className="w-full border rounded px-2 py-1 text-sm"
+                          value={editStatus[answer.question_id] ?? remarksByQuestion.get(answer.question_id)?.Status ?? ""}
+                          onChange={(e) => setEditStatus((s) => ({ ...s, [answer.question_id]: e.target.value }))}
+                        >
+                          <option value="">—</option>
+                          <option value="Accepted">Accepted</option>
+                          <option value="Rejected">Rejected</option>
+                          <option value="Pending">Pending</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase text-slate-500 mb-1">Set Remark</label>
+                        <textarea
+                          className="w-full border rounded px-2 py-1 text-sm"
+                          rows={2}
+                          value={editText[answer.question_id] ?? remarksByQuestion.get(answer.question_id)?.Remarks ?? ""}
+                          onChange={(e) => setEditText((t) => ({ ...t, [answer.question_id]: e.target.value }))}
+                          placeholder="Enter manager remark"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+                        onClick={() => saveRemark(answer.question_id)}
+                        disabled={!!saving[answer.question_id]}
+                      >
+                        {saving[answer.question_id] ? "Saving..." : "Save Review"}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -200,7 +265,59 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
         </ModernCard>
       )}
 
-      {/* Manager Review Actions removed for read-only view */}
+      {/* Overall Manager Actions */}
+      <ModernCard>
+        <ModernCardHeader>
+          <ModernCardTitle>Finalize Review</ModernCardTitle>
+        </ModernCardHeader>
+        <ModernCardContent>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Overall Manager Remarks (optional)</label>
+              <textarea
+                className="w-full border rounded px-3 py-2 text-sm"
+                rows={3}
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                placeholder="Any overall remarks"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <ModernButton
+                disabled={reviewBusy}
+                onClick={async () => {
+                  try {
+                    setReviewBusy(true)
+                    await reviewInspection(inspectionId, { status: "Accepted", manager_remarks: reviewText || undefined })
+                    await Promise.all([refetch(), refetchRemarks()])
+                    router.back()
+                  } finally {
+                    setReviewBusy(false)
+                  }
+                }}
+              >
+                Accept Inspection
+              </ModernButton>
+              <ModernButton
+                variant="reject"
+                disabled={reviewBusy}
+                onClick={async () => {
+                  try {
+                    setReviewBusy(true)
+                    await reviewInspection(inspectionId, { status: "Rejected", manager_remarks: reviewText || undefined })
+                    await Promise.all([refetch(), refetchRemarks()])
+                    router.back()
+                  } finally {
+                    setReviewBusy(false)
+                  }
+                }}
+              >
+                Reject Inspection
+              </ModernButton>
+            </div>
+          </div>
+        </ModernCardContent>
+      </ModernCard>
 
       {/* Fullscreen preview for image/video */}
       <ZoomDialog open={!!viewer} onOpenChange={(open) => !open && setViewer(null)}>
