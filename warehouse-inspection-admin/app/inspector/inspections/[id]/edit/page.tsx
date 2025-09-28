@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail, uploadEvidence, updateInspectionDetails, getQuestions, type ApiQuestion } from "@/lib/api"
+import { getInspectionDetail, uploadEvidence, updateInspectionDetails, getQuestions, type ApiQuestion, deleteEvidence } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -25,7 +25,7 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
   const id = Number(params.id)
   const focusQ = Number(searchParams.get("q") || 0)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["inspection-detail", id],
     queryFn: () => getInspectionDetail(id),
     enabled: isFinite(id) && id > 0,
@@ -82,6 +82,31 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
       const nextFiles = existing.filter((_, i) => i !== index)
       return { ...prev, [qid]: { ...(prev[qid] || {}), files: nextFiles } }
     })
+  }
+
+  // Handlers for existing evidence operations
+  const onDeleteExistingEvidence = async (evidenceId: number) => {
+    try {
+      setMsg("")
+      setErr("")
+      await deleteEvidence(id, evidenceId)
+      await refetch()
+    } catch (e: any) {
+      setErr(e?.message || "Failed to delete evidence")
+    }
+  }
+
+  const onReplaceExistingEvidence = async (qid: number, evidenceId: number, file: File) => {
+    try {
+      setMsg("")
+      setErr("")
+      await deleteEvidence(id, evidenceId)
+      await uploadEvidence(id, file, qid)
+      await refetch()
+      setMsg("Evidence replaced successfully")
+    } catch (e: any) {
+      setErr(e?.message || "Failed to replace evidence")
+    }
   }
 
   const uploadNewEvidence = async (qid: number) => {
@@ -241,7 +266,7 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                                     const isImage = type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(ev.file_url)
                                     const isVideo = type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv)$/i.test(ev.file_url)
                                     return (
-                                      <div key={ev.id} className="relative w-24 h-24">
+                                      <div key={ev.id} className="relative w-28">
                                         {isImage ? (
                                           // eslint-disable-next-line @next/next/no-img-element
                                           <a href={ev.file_url} target="_blank" rel="noreferrer">
@@ -257,6 +282,30 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                                             <span className="truncate px-1">Open</span>
                                           </a>
                                         )}
+                                        <div className="mt-1 flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => onDeleteExistingEvidence(ev.id)}
+                                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                            disabled={isFetching}
+                                          >
+                                            Delete
+                                          </button>
+                                          <label className="text-xs text-blue-600 hover:underline cursor-pointer disabled:opacity-50">
+                                            Replace
+                                            <input
+                                              type="file"
+                                              accept="image/*,video/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0]
+                                                if (f) onReplaceExistingEvidence(qa.question_id, ev.id, f)
+                                                e.currentTarget.value = ""
+                                              }}
+                                              disabled={isFetching}
+                                            />
+                                          </label>
+                                        </div>
                                       </div>
                                     )
                                   })}
@@ -270,7 +319,7 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                                 type="file"
                                 accept="image/*,video/*"
                                 multiple
-                                onChange={(e) => addFiles(qa.question_id, e.target.files)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => addFiles(qa.question_id, e.target.files)}
                                 className="hidden"
                               />
                               <div className="flex items-center gap-2">

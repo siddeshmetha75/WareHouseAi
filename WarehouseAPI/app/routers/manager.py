@@ -343,35 +343,49 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
     per_answers = []
     for ans in inspection.inspection_answers:
         question = ans.question
-        if question:
-            # Remarks for this question & inspection
-            question_remarks = [
-                {
-                    "remark_id": r.Id_Remark,
-                    "status": r.Status,
-                    "manager_remarks": r.Remarks
-                }
-                for r in question.remark if r.InspectionsId == inspection.Id_Inspections
-            ]
+        if not question:
+            continue
 
-            # Evidence for this question
-            question_evidence = [
-                {
-                    "id": ev.id,
-                    "file_path": ev.file_path,
-                    "file_type": ev.file_type,
-                    "uploaded_at": ev.uploaded_at
-                }
-                for ev in inspection.evidence if ev.question_id == question.id
-            ]
+        # Fetch remarks for this inspection and question directly from Remark table
+        question_remarks = [
+            {
+                "remark_id": r.Id_Remark,
+                "status": r.Status,
+                "manager_remarks": r.Remarks,
+            }
+            for r in db.query(Remark)
+                .filter(
+                    Remark.InspectionsId == inspection.Id_Inspections,
+                    Remark.Question_Id == question.id,
+                    Remark.Is_Active == 1,
+                )
+                .all()
+        ]
 
-            per_answers.append({
+        # Evidence for this question
+        question_evidence = [
+            {
+                "id": ev.id,
+                "file_path": ev.file_path,
+                "file_type": ev.file_type,
+                "uploaded_at": ev.uploaded_at,
+            }
+            for ev in inspection.evidence
+            if ev.question_id == question.id
+        ]
+
+        # Prefer manager remarks array when present; otherwise include inspector's own remarks string
+        remarks_value = question_remarks if len(question_remarks) > 0 else (ans.remarks or None)
+
+        per_answers.append(
+            {
                 "question_id": question.id,
-                "question_text": question.text_,
+                "question_text": getattr(question, "text_", None) or getattr(question, "text", ""),
                 "answer": ans.answer,
-                "remarks": question_remarks,
-                "evidence": question_evidence
-            })
+                "remarks": remarks_value,
+                "evidence": question_evidence,
+            }
+        )
 
     # Build top-level evidence list
     evidence_list = [

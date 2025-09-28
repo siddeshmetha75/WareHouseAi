@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { getInspectionDetail } from "@/lib/api"
+import { getInspectionDetail, deleteEvidence, uploadEvidence } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
   const router = useRouter()
   const [viewer, setViewer] = useState<null | { type: "image" | "video"; src: string; name?: string }>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["inspection-detail", id],
     queryFn: () => getInspectionDetail(id),
     enabled: Number.isFinite(id),
@@ -40,6 +40,24 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
   }
   const closePreview = () => {
     setViewer(null)
+  }
+  const onDeleteEvidence = async (evidenceId: number) => {
+    try {
+      await deleteEvidence(id, evidenceId)
+      await refetch()
+    } catch (e) {
+      console.error("Failed to delete evidence", e)
+    }
+  }
+  const onReplaceEvidence = async (questionId: number, evidenceId: number, file: File) => {
+    try {
+      // Replace = delete old then upload new bound to same question
+      await deleteEvidence(id, evidenceId)
+      await uploadEvidence(id, file, questionId)
+      await refetch()
+    } catch (e) {
+      console.error("Failed to replace evidence", e)
+    }
   }
   const getNameFromUrl = (url: string) => {
     try {
@@ -106,11 +124,27 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
               <div key={a.question_id} className="rounded-xl shadow p-4">
                 <p className="font-semibold">{a.question_text}</p>
                 <p>Answer: {a.answer ?? "—"}</p>
-                {a.remarks && <p>Remarks: {a.remarks}</p>}
+                {Array.isArray(a.remarks) ? (
+                  a.remarks.length > 0 ? (
+                    <div className="mt-2">
+                      <p className="font-medium">Manager Remarks</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {a.remarks.map((r: any, idx: number) => (
+                          <li key={idx} className="text-sm text-gray-700">
+                            {r.status ? (<span className="mr-2 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200">{r.status}</span>) : null}
+                            {r.manager_remarks || r.Remarks || "—"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null
+                ) : (
+                  a.remarks ? <p>Remarks: {a.remarks}</p> : null
+                )}
                 {a.evidence && a.evidence.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-3">
                     {a.evidence.map((ev: any) => (
-                      <div key={ev.id} className="w-24 h-24">
+                      <div key={ev.id} className="w-28">
                         {ev.file_type?.startsWith("image/") ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -130,6 +164,7 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
                             <span className="truncate px-1">Video</span>
                           </button>
                         )}
+                       
                       </div>
                     ))}
                   </div>
@@ -141,7 +176,7 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
                 <p className="font-semibold mb-2">Evidence</p>
                 <div className="flex flex-wrap gap-3">
                   {evidence.map((e: any) => (
-                    <div key={e.id} className="w-24 h-24">
+                    <div key={e.id} className="w-28">
                       {e.file_type?.startsWith("image/") ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -160,6 +195,30 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
                           <span className="truncate px-1">Video</span>
                         </button>
                       )}
+                      <div className="mt-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onDeleteEvidence(e.id)}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          disabled={isFetching}
+                        >
+                          Delete
+                        </button>
+                        <label className="text-xs text-blue-600 hover:underline cursor-pointer disabled:opacity-50">
+                          Replace
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            className="hidden"
+                            onChange={(ev2) => {
+                              const f = ev2.target.files?.[0]
+                              if (f) onReplaceEvidence(e.question_id, e.id, f)
+                              ev2.currentTarget.value = ""
+                            }}
+                            disabled={isFetching}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ))}
                 </div>

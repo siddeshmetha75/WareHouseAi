@@ -94,6 +94,10 @@ export async function uploadEvidence(inspectionId: number, file: File, questionI
   return api.post(`/api/inspections/${inspectionId}/evidence`, formData);
 }
 
+export async function deleteEvidence(inspectionId: number, evidenceId: number) {
+  await api.delete(`/api/inspections/${inspectionId}/evidence/${evidenceId}`)
+}
+
 // Commodity-Warehouse mappings for inspector and warehouse
 export interface ApiCommodityWarehouseMap {
   Id_CommodityWarehouseMap: number
@@ -135,26 +139,65 @@ export async function listInspections(params?: { pending_only?: boolean; inspect
 
 export async function getInspectionDetail(inspectionId: number) {
   const { data } = await api.get(`/api/inspections/${inspectionId}`)
-  return data as {
-    inspection: {
-      id: number
-      warehouse?: ApiEntityRef | null
-      commodity?: ApiEntityRef | null
-      inspector?: ApiInspectorRef | null
-      status: "Pending" | "Accepted" | "Rejected"
-      manager_remarks?: string | null
-      Season_Id?: number | null
-      SeasonName?: string | null
-    }
-    answers: Array<{
-      question_id: number
-      question_text: string
-      answer?: string
-      remarks?: string
-      evidence?: Array<{ id: number; file_url: string; file_type?: string }>
-    }>
-    evidence: Array<{ id: number; file_url: string; file_type?: string }>
+  const raw: any = data
+
+  // Build inspection object expected by UI
+  const inspection = {
+    id: raw.Id_Inspections ?? raw.id,
+    warehouse: raw.warehouse ?? raw.Warehouse ?? null,
+    commodity: raw.commodity ?? raw.Commodity ?? null,
+    inspector: raw.inspector ?? raw.Inspector ?? null,
+    status: (raw.status ?? raw.Status ?? "").toString(),
+    manager_remarks: raw.manager_remarks ?? raw.Manager_Remarks ?? null,
+    Season_Id: raw.Season?.id ?? raw.Season_Id ?? null,
+    SeasonName: raw.Season?.name ?? raw.SeasonName ?? null,
+  } as {
+    id: number
+    warehouse?: ApiEntityRef | null
+    commodity?: ApiEntityRef | null
+    inspector?: ApiInspectorRef | null
+    status: "Pending" | "Accepted" | "Rejected" | string
+    manager_remarks?: string | null
+    Season_Id?: number | null
+    SeasonName?: string | null
   }
+
+  // Helper to convert backend file_path to public file_url
+  const toFileUrl = (file_path?: string | null) => {
+    if (!file_path) return undefined
+    try {
+      const name = file_path.split(/\\|\//).pop() || ""
+      return `http://127.0.0.1:8000/uploads/${encodeURIComponent(name)}`
+    } catch {
+      return undefined
+    }
+  }
+
+  // Build answers array from per_answers if UI-style answers missing
+  const answers = (raw.answers as any[] | undefined) ??
+    ((raw.per_answers as any[] | undefined)?.map((a) => ({
+      question_id: a.question_id ?? a.Question_Id,
+      question_text: a.question_text ?? a.Question_Text ?? "",
+      answer: a.answer ?? null,
+      // If remarks is an array of remark entries, collapse to string if needed
+      remarks: Array.isArray(a.remarks)
+        ? (a.remarks.find((r: any) => !!r?.manager_remarks)?.manager_remarks ?? null)
+        : (a.manager_remarks ?? a.Remarks ?? a.remarks ?? null),
+      evidence: (a.evidence || []).map((ev: any) => ({
+        id: ev.id,
+        file_url: toFileUrl(ev.file_path),
+        file_type: ev.file_type,
+      })),
+    })) ?? [])
+
+  // Build top-level evidence array
+  const evidence = ((raw.evidence as any[] | undefined) ?? []).map((ev) => ({
+    id: ev.id,
+    file_url: toFileUrl(ev.file_path),
+    file_type: ev.file_type,
+  }))
+
+  return { inspection, answers, evidence }
 }
 
 export async function reviewInspection(

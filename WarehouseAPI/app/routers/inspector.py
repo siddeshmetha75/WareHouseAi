@@ -246,6 +246,28 @@ def upload_evidence(
     return {"status": "success", "evidence_id": ev.id}
 
 
+@router.delete("/inspections/{inspection_id}/evidence/{evidence_id}")
+def delete_evidence(
+    inspection_id: int,
+    evidence_id: int,
+    db: Session = Depends(get_db),
+):
+    # Ensure inspection exists
+    if not db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first():
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    ev = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not ev:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    if ev.inspection_id != inspection_id:
+        raise HTTPException(status_code=400, detail="Evidence does not belong to this inspection")
+
+    # Optionally remove file from disk (keep for now or implement safe delete)
+    db.delete(ev)
+    db.commit()
+    return {"status": "success"}
+
+
 @router.put("/inspections/{inspection_id}")
 def update_inspection(
     inspection_id: int,
