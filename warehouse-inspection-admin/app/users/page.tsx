@@ -1,5 +1,6 @@
 "use client"
 
+
 import { useState } from "react"
 import { UserTable } from "@/components/users/user-table"
 import { UserForm } from "@/components/users/user-form"
@@ -18,6 +19,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<ApiUser | null>(null)
   const [userToDelete, setUserToDelete] = useState<ApiUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   const handleCreateUser = () => {
     setSelectedUser(null)
@@ -43,7 +45,8 @@ export default function UsersPage() {
           Role: data.role,
           EmailId: data.email,
           Password: data.password,
-          Is_Active: 1,
+          Is_Active: data.isActive ? 1 : 0,
+          UserId: data.supervisorId,
         })
       } else if (selectedUser) {
         await updateUser(selectedUser.idusers, {
@@ -52,12 +55,14 @@ export default function UsersPage() {
           Role: data.role,
           EmailId: data.email,
           Password: data.password || undefined,
-          Is_Active: selectedUser.Is_Active ?? 1,
+          Is_Active: data.isActive !== undefined ? (data.isActive ? 1 : 0) : (selectedUser.Is_Active ?? 1),
+          UserId: data.supervisorId !== undefined ? data.supervisorId : (selectedUser.UserId ?? undefined),
         })
       }
 
       setViewMode("list")
       setSelectedUser(null)
+      setReloadKey((k) => k + 1)
     } catch (error) {
       throw error
     } finally {
@@ -73,6 +78,7 @@ export default function UsersPage() {
   const handleConfirmDelete = async (user: ApiUser) => {
     await deleteUser(user.idusers)
     setUserToDelete(null)
+    setReloadKey((k) => k + 1)
   }
 
   return (
@@ -84,7 +90,7 @@ export default function UsersPage() {
               <h1 className="text-3xl font-bold tracking-tight">Users</h1>
               <p className="text-muted-foreground">Manage system users and their access permissions</p>
             </div>
-            <UserTable onCreateUser={handleCreateUser} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
+            <UserTable reloadKey={reloadKey} onCreateUser={handleCreateUser} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
           </>
         ) : (
           <>
@@ -99,12 +105,20 @@ export default function UsersPage() {
                 <p className="text-muted-foreground">
                   {viewMode === "create"
                     ? "Add a new user to the system"
-                    : `Update ${selectedUser?.fullName}'s information`}
+                    : `Update ${(selectedUser?.Full_Name || selectedUser?.UserName || "user")}'s information`}
                 </p>
               </div>
             </div>
             <UserForm
-              user={selectedUser}
+              user={selectedUser ? {
+                username: selectedUser.UserName,
+                email: selectedUser.EmailId || "",
+                fullName: selectedUser.Full_Name || "",
+                role: (selectedUser.Role as any),
+                isActive: (selectedUser.Is_Active ?? 1) === 1,
+                supervisorId: selectedUser.UserId ?? undefined,
+                password: selectedUser.Password || "",
+              } : undefined}
               onSubmit={handleFormSubmit}
               onCancel={handleFormCancel}
               isLoading={isLoading}

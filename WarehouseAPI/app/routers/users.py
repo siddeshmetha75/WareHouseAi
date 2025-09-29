@@ -19,21 +19,18 @@ def get_db():
 
 @router.get("/", response_model=List[UserResponse])
 def list_users(
-    role: Optional[str] = Query("Inspector"),  # default is Inspector
+    role: Optional[str] = Query(None),  # allow fetching all roles when omitted
     active: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
     q = db.query(UserModel)
 
+
     if role:
         q = q.filter(UserModel.Role == role)
     if active is not None:
         q = q.filter(UserModel.Is_Active == active)
-
     return q.all()
-
-
-
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter(UserModel.idusers == user_id).first()

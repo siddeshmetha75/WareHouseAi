@@ -130,6 +130,8 @@ export interface CreateUserForm {
   fullName: string
   role: UserRole
   phone?: string
+  isActive?: boolean
+  supervisorId?: number
 }
 
 export interface CreateWarehouseForm {

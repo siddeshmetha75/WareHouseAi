@@ -12,6 +12,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     Password: str = Field(..., max_length=45)
+    UserId: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
@@ -21,10 +22,15 @@ class UserUpdate(BaseModel):
     EmailId: Optional[EmailStr] = None
     Password: Optional[str] = Field(None, max_length=45)
     Is_Active: Optional[int] = None
+    UserId: Optional[int] = None
 
 
 class UserResponse(UserBase):
     idusers: int
+    UserId: Optional[int] = None
+    # NOTE: Returning Password in responses is insecure in production.
+    # Included here to match current UI needs; remove once UI no longer requires it.
+    Password: Optional[str] = None
 
     class Config:
         from_attributes = True

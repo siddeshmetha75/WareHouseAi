@@ -215,6 +215,7 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
               onSubmit={async (e) => {
                 e.preventDefault()
                 try {
+                  setSubmitting(true)
                   setMsg("")
                   setErr("")
                   const answerList = Object.entries(answers).map(([qid, a]) => ({
@@ -233,8 +234,14 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                   if (insp?.commodity?.id) payload.Commodity_Id = insp.commodity.id
                   if (insp?.Season_Id) payload.Season_Id = insp.Season_Id
                   await updateInspectionDetails(id, payload)
+                  setMsg("Inspection updated successfully")
+                  await refetch()
+                  // Navigate back to detail view
+                  router.push(`/inspector/inspections/${id}`)
                 } catch (e: any) {
                   setErr(e?.message || "Failed to update inspection")
+                } finally {
+                  setSubmitting(false)
                 }
               }}
             >
@@ -413,8 +420,8 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
               )}
 
               <div className="flex items-center gap-3">
-                <Button type="submit">Save Changes</Button>
-                <Button type="button" variant="outline" onClick={() => router.back()} className="bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">Cancel</Button>
+                <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Changes"}</Button>
+                <Button type="button" variant="outline" onClick={() => router.back()} disabled={submitting} className="bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">Cancel</Button>
               </div>
             </form>
           )}

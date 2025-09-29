@@ -9,14 +9,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, MoreHorizontal, Edit, Trash2, UserPlus } from "lucide-react"
 import { getUsers, type ApiUser } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
 
 interface UserTableProps {
   onCreateUser: () => void
   onEditUser: (user: ApiUser) => void
   onDeleteUser: (user: ApiUser) => void
+  reloadKey?: number
 }
 
-export function UserTable({ onCreateUser, onEditUser, onDeleteUser }: UserTableProps) {
+export function UserTable({ onCreateUser, onEditUser, onDeleteUser, reloadKey = 0 }: UserTableProps) {
   const [rows, setRows] = useState<ApiUser[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
@@ -38,7 +40,7 @@ export function UserTable({ onCreateUser, onEditUser, onDeleteUser }: UserTableP
 
   useEffect(() => {
     load()
-  }, [roleFilter, activeFilter])
+  }, [roleFilter, activeFilter, reloadKey])
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -105,48 +107,41 @@ export function UserTable({ onCreateUser, onEditUser, onDeleteUser }: UserTableP
           <Table>
             <TableHeader>
               <TableRow>
-                  <TableHead>idusers</TableHead>
                   <TableHead>UserName</TableHead>
-                  <TableHead>Full_Name</TableHead>
+                  <TableHead>Full Name</TableHead>
                 <TableHead>Role</TableHead>
-                  <TableHead>EmailId</TableHead>
-                  <TableHead>Is_Active</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
                 {filtered.map((u) => (
                   <TableRow key={u.idusers}>
-                    <TableCell>{u.idusers}</TableCell>
                     <TableCell>{u.UserName}</TableCell>
                     <TableCell>{u.Full_Name || "-"}</TableCell>
                     <TableCell>{u.Role}</TableCell>
                     <TableCell>{u.EmailId || "-"}</TableCell>
-                    <TableCell>{u.Is_Active ?? 0}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEditUser(u)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDeleteUser(u)} className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <TableCell>
+                      {(u.Is_Active ?? 0) === 1 ? (
+                        <Badge variant="default">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary">Inactive</Badge>
+                      )}
+                    </TableCell>
+                  <TableCell className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEditUser(u) }} aria-label="Edit user">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteUser(u) }} aria-label="Delete user">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">No users found.</TableCell>
                   </TableRow>
                 )}
             </TableBody>

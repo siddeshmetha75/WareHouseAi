@@ -52,13 +52,13 @@ const navigation = [
     name: "Warehouses",
     href: "/warehouses",
     icon: Warehouse,
-    roles: ["Admin", "Manager"],
+    roles: ["Admin", ],
   },
   {
     name: "Commodities",
     href: "/commodities",
     icon: Package,
-    roles: ["Admin", "Manager"],
+    roles: ["Admin", ],
   },
   {
     name: "Users",
@@ -70,7 +70,7 @@ const navigation = [
     name: "Reports",
     href: "/reports",
     icon: TrendingUp,
-    roles: ["Admin", "Manager"],
+    roles: ["Admin", ],
   },
   {
     name: "Settings",

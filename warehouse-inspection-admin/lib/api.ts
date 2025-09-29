@@ -315,6 +315,8 @@ export interface ApiUser {
   Role: string
   EmailId: string | null
   Is_Active: number | null
+  UserId?: number | null
+  Password?: string | null
 }
 
 export interface CreateApiUser {
@@ -324,6 +326,7 @@ export interface CreateApiUser {
   EmailId?: string
   Password: string
   Is_Active?: number
+  UserId?: number
 }
 
 export interface UpdateApiUser {
@@ -333,10 +336,16 @@ export interface UpdateApiUser {
   EmailId?: string
   Password?: string
   Is_Active?: number
+  UserId?: number
 }
 
 export async function getUsers(params?: { role?: string; active?: number }): Promise<ApiUser[]> {
   const { data } = await api.get<ApiUser[]>("/users/", { params })
+  return data
+}
+
+export async function getUser(id: number): Promise<ApiUser> {
+  const { data } = await api.get<ApiUser>(`/users/${id}`)
   return data
 }
 
@@ -352,6 +361,11 @@ export async function updateUser(id: number, payload: UpdateApiUser): Promise<Ap
 
 export async function deleteUserAccount(id: number): Promise<void> {
   await api.delete(`/users/${id}`)
+}
+
+// Alias matching existing imports in UI
+export async function deleteUser(id: number): Promise<void> {
+  return deleteUserAccount(id)
 }
 
 export interface ApiCommodity {

@@ -154,38 +154,50 @@ export default function InspectionDetailPage({ params }: { params: { id: string 
               <div key={a.question_id} className="rounded-xl shadow p-4">
                 <p className="font-semibold">{a.question_text}</p>
                 <p>Answer: {a.answer ?? "—"}</p>
-                {/* Manager Review: prefer remarks API per question, fallback to embedded */}
+                {/* Answer remark (inspector's own) when remarks is a plain string */}
+                {!Array.isArray(a.remarks) && a.remarks ? (
+                  <p className="mt-1 text-sm text-gray-700"><span className="font-medium">Answer Remark:</span> {a.remarks}</p>
+                ) : null}
+                {/* Manager remarks: prefer remarks API per question, fallback to embedded array */}
                 {remarksByQuestion.get(a.question_id)?.length ? (
                   <div className="mt-2">
-                    <p className="font-medium">Manager Review</p>
+                    <p className="font-medium">Manager Remark(s)</p>
                     <ul className="list-disc pl-5 space-y-1">
-                      {remarksByQuestion.get(a.question_id)!.map((r) => (
-                        <li key={r.Id_Remark} className="text-sm text-gray-700">
-                          {r.Status ? (
-                            <span className={statusPillClasses(r.Status)}>{r.Status}</span>
-                          ) : null}
-                          {r.Remarks || "—"}
-                        </li>
-                      ))}
+                      {remarksByQuestion.get(a.question_id)!.map((r) => {
+                        const s = (r.Status || "").toString().toLowerCase()
+                        const statusClass = s === "accepted" ? "text-green-600" : s === "rejected" ? "text-red-600" : s === "pending" ? "text-amber-600" : "text-gray-500"
+                        return (
+                          <li key={r.Id_Remark} className="text-sm text-gray-700">
+                            {r.Remarks || "—"}
+                            {r.Status ? (
+                              <div className={`mt-0.5 text-xs ${statusClass}`}>{r.Status}</div>
+                            ) : null}
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
                 ) : Array.isArray(a.remarks) ? (
                   a.remarks.length > 0 ? (
                     <div className="mt-2">
-                      <p className="font-medium">Manager Review</p>
+                      <p className="font-medium">Manager Remark(s)</p>
                       <ul className="list-disc pl-5 space-y-1">
-                        {a.remarks.map((r: any, idx: number) => (
-                          <li key={idx} className="text-sm text-gray-700">
-                            {r.status ? (<span className={statusPillClasses(r.status)}>{r.status}</span>) : null}
-                            {r.manager_remarks || r.Remarks || "—"}
-                          </li>
-                        ))}
+                        {a.remarks.map((r: any, idx: number) => {
+                          const s = (r.status || "").toString().toLowerCase()
+                          const statusClass = s === "accepted" ? "text-green-600" : s === "rejected" ? "text-red-600" : s === "pending" ? "text-amber-600" : "text-gray-500"
+                          return (
+                            <li key={idx} className="text-sm text-gray-700">
+                              {r.manager_remarks || r.Remarks || "—"}
+                              {r.status ? (
+                                <div className={`mt-0.5 text-xs ${statusClass}`}>{r.status}</div>
+                              ) : null}
+                            </li>
+                          )
+                        })}
                       </ul>
                     </div>
                   ) : null
-                ) : (
-                  a.remarks ? <p>Remarks: {a.remarks}</p> : null
-                )}
+                ) : null}
                 {a.evidence && a.evidence.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-3">
                     {a.evidence.map((ev: any) => (

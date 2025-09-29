@@ -12,13 +12,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Loader2 } from "lucide-react"
-import type { User } from "@/lib/types"
+import type { ApiUser } from "@/lib/api"
 
 interface DeleteUserDialogProps {
-  user: User | null
+  user: ApiUser | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (user: User) => Promise<void>
+  onConfirm: (user: ApiUser) => Promise<void>
 }
 
 export function DeleteUserDialog({ user, open, onOpenChange, onConfirm }: DeleteUserDialogProps) {
@@ -44,7 +44,7 @@ export function DeleteUserDialog({ user, open, onOpenChange, onConfirm }: Delete
         <AlertDialogHeader>
           <AlertDialogTitle>Delete User</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete <strong>{user?.fullName}</strong>? This action cannot be undone. All data
+            Are you sure you want to delete <strong>{user?.Full_Name || user?.UserName}</strong>? This action cannot be undone. All data
             associated with this user will be permanently removed.
           </AlertDialogDescription>
         </AlertDialogHeader>

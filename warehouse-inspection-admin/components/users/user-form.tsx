@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,11 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
-import type { User, UserRole, CreateUserForm } from "@/lib/types"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
+import type { UserRole, CreateUserForm } from "@/lib/types"
+import { getUsers, type ApiUser } from "@/lib/api"
 
 interface UserFormProps {
-  user?: User
+  user?: {
+    username?: string
+    email?: string
+    fullName?: string
+    role?: UserRole
+    isActive?: boolean
+    supervisorId?: number
+    password?: string
+  }
   onSubmit: (data: CreateUserForm) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
@@ -24,13 +33,29 @@ export function UserForm({ user, onSubmit, onCancel, isLoading = false }: UserFo
   const [formData, setFormData] = useState<CreateUserForm>({
     username: user?.username || "",
     email: user?.email || "",
-    password: "",
+    password: user?.password || "",
     fullName: user?.fullName || "",
     role: user?.role || "Inspector",
-    phone: user?.phone || "",
   })
   const [isActive, setIsActive] = useState(user?.isActive ?? true)
+  const [supervisors, setSupervisors] = useState<ApiUser[]>([])
+  const [supervisorId, setSupervisorId] = useState<number | undefined>(user?.supervisorId)
+  const [supervisorsLoading, setSupervisorsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
+
+  // Reset form when incoming user prop changes (e.g., open different user or switch create/edit)
+  useEffect(() => {
+    setFormData({
+      username: user?.username || "",
+      email: user?.email || "",
+      password: user?.password || "",
+      fullName: user?.fullName || "",
+      role: user?.role || "Inspector",
+    })
+    setIsActive(user?.isActive ?? true)
+    setSupervisorId(user?.supervisorId)
+  }, [user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +77,14 @@ export function UserForm({ user, onSubmit, onCancel, isLoading = false }: UserFo
       return
     }
 
+    // Require hierarchy selection when role is not Admin
+    if (formData.role !== "Admin" && (supervisorId === undefined || Number.isNaN(supervisorId))) {
+      setError(`Please select a ${formData.role === "Inspector" ? "Manager" : "Admin"}`)
+      return
+    }
+
     try {
-      await onSubmit(formData)
+      await onSubmit({ ...formData, isActive, supervisorId })
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     }
@@ -63,12 +94,58 @@ export function UserForm({ user, onSubmit, onCancel, isLoading = false }: UserFo
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Load supervisor options based on selected role
+  useEffect(() => {
+    const fetchSupervisors = async () => {
+      setSupervisorsLoading(true)
+      try {
+        if (formData.role === "Inspector") {
+          const managers = await getUsers({ role: "Manager" })
+          setSupervisors(managers)
+        } else if (formData.role === "Manager") {
+          const admins = await getUsers({ role: "Admin" })
+          setSupervisors(admins)
+        } else {
+          setSupervisors([])
+        }
+      } catch {
+        setSupervisors([])
+      } finally {
+        setSupervisorsLoading(false)
+      }
+    }
+    fetchSupervisors()
+  }, [formData.role])
+
+  // Ensure a valid selection when editing: use existing user's supervisor if available; otherwise leave empty
+  useEffect(() => {
+    if (formData.role === "Admin") return
+    if (!supervisors || supervisors.length === 0) return
+    if (supervisorId && supervisors.some((s) => s.idusers === supervisorId)) return
+    if (user?.supervisorId && supervisors.some((s) => s.idusers === user.supervisorId)) {
+      setSupervisorId(user.supervisorId)
+    } else {
+      setSupervisorId(undefined)
+    }
+  }, [supervisors])
+
+  // If role changes and current supervisor is not part of the new list, clear selection (force user to choose)
+  useEffect(() => {
+    if (formData.role === "Admin") {
+      setSupervisorId(undefined)
+      return
+    }
+    if (!supervisors || supervisors.length === 0) return
+    if (supervisorId !== undefined && !supervisors.some((s) => s.idusers === supervisorId)) {
+      setSupervisorId(undefined)
+    }
+  }, [formData.role, supervisors])
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>{user ? "Edit User" : "Create New User"}</CardTitle>
         <CardDescription>
-          {user ? "Update user information and permissions" : "Add a new user to the system"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -117,41 +194,61 @@ export function UserForm({ user, onSubmit, onCancel, isLoading = false }: UserFo
               <Select
                 value={formData.role}
                 onValueChange={(value: UserRole) => handleInputChange("role", value)}
-                disabled={isLoading}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/*<SelectItem value="Admin">Admin</SelectItem>*/}
+                  <SelectItem value="Admin">Admin</SelectItem>
                   <SelectItem value="Inspector">Inspector</SelectItem>
                   <SelectItem value="Manager">Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                placeholder="Enter phone number"
-                disabled={isLoading}
-              />
-            </div>
+            {formData.role !== "Admin" && (
+              <div className="space-y-2">
+                <Label htmlFor="supervisor">{formData.role === "Inspector" ? "Manager" : "Admin"}</Label>
+                <Select
+                  value={supervisorId !== undefined ? String(supervisorId) : ""}
+                  onValueChange={(val) => setSupervisorId(Number(val))}
+                  disabled={isLoading || supervisorsLoading || supervisors.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={supervisorsLoading ? "Loading..." : (supervisors.length ? `Select ${formData.role === "Inspector" ? "Manager" : "Admin"}` : "No options")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supervisors.map((s) => (
+                      <SelectItem key={s.idusers} value={String(s.idusers)}>
+                        {s.Full_Name || s.UserName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">{user ? "New Password (leave blank to keep current)" : "Password *"}</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) => handleInputChange("password", e.target.value)}
-              placeholder={user ? "Enter new password" : "Enter password"}
-              required={!user}
-              disabled={isLoading}
-            />
+            <Label htmlFor="password">{user ? "Password (leave blank to keep current)" : "Password *"}</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={(e) => handleInputChange("password", e.target.value)}
+                placeholder={user ? "Enter new password" : "Enter password"}
+                required={!user}
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-2 flex items-center text-muted-foreground"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {user && (
