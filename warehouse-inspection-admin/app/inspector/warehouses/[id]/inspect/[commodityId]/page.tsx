@@ -110,10 +110,19 @@ export default function InspectionFormPage() {
       setTimeout(() => router.push("/inspector/dashboard"), 1200)
     } catch (err: any) {
       const status = err?.response?.status
+      const data = err?.response?.data
+      const serverMsg =
+        typeof data === "string"
+          ? data
+          : data?.detail || data?.message || (data ? JSON.stringify(data) : null)
       if (status === 401) {
         setError("Unauthorized. Please log in as an Inspector and try again.")
       } else if (status === 403) {
         setError("Forbidden. Only inspectors can create inspections.")
+      } else if (status === 422) {
+        setError(`Validation error: ${serverMsg || "Unprocessable Entity"}`)
+      } else if (status) {
+        setError(`Request failed (${status}): ${serverMsg || err?.message || "Unknown error"}`)
       } else {
         setError(err?.message || "Failed to submit inspection")
       }

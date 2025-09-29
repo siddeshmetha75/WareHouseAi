@@ -82,20 +82,47 @@ export async function createInspectionWithAnswers(payload: {
   Season_Id?: number
   answers: Array<{ question_id: number; answer?: string; remarks?: string }>
 }): Promise<{ inspection_id: number; saved_answers: number }> {
-  const { data } = await api.post(`/api/inspections`, payload)
-  return data
-}
-//   return data
-// }
-export async function uploadEvidence(inspectionId: number, file: File, questionId: number) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("question_id", questionId.toString());
-  return api.post(`/api/inspections/${inspectionId}/evidence`, formData);
+  // Map to backend-expected PascalCase keys
+  const mapped = {
+    // PascalCase
+    WarehouseId: payload.warehouse_id,
+    CommodityId: payload.commodity_id,
+    InspectorId: payload.inspector_id,
+    ...(payload.Season_Id ? { Season_Id: payload.Season_Id, SeasonId: payload.Season_Id } : {}),
+    Answers: payload.answers.map((a) => ({
+      Question_Id: a.question_id,
+      Answer: a.answer ?? "",
+      Remarks: a.remarks ?? "",
+    })),
+    // snake_case duplicates for compatibility
+    warehouse_id: payload.warehouse_id,
+    commodity_id: payload.commodity_id,
+    inspector_id: payload.inspector_id,
+    ...(payload.Season_Id ? { season_id: payload.Season_Id } : {}),
+    answers: payload.answers.map((a) => ({
+      question_id: a.question_id,
+      answer: a.answer ?? "",
+      remarks: a.remarks ?? "",
+    })),
+  }
+  const { data } = await api.post(`/api/inspections`, mapped)
+  // Normalize to expected shape
+  return {
+    inspection_id: data?.inspection_id ?? data?.Id_Inspections ?? data?.id,
+    saved_answers: data?.saved_answers ?? (Array.isArray(data?.Answers) ? data.Answers.length : 0),
+  }
 }
 
-export async function deleteEvidence(inspectionId: number, evidenceId: number) {
-  await api.delete(`/api/inspections/${inspectionId}/evidence/${evidenceId}`)
+export async function uploadEvidence(inspectionId: number, file: File, questionId: number) {
+  const formData = new FormData()
+  formData.append("file", file, file.name)
+  // Include several possible keys that different backends might validate against
+  formData.append("Question_Id", questionId.toString())
+  formData.append("QuestionId", questionId.toString())
+  formData.append("question_id", questionId.toString())
+  // Provide file_type if backend validates it
+  if (file.type) formData.append("file_type", file.type)
+  return api.post(`/api/inspections/${inspectionId}/evidence`, formData)
 }
 
 // Commodity-Warehouse mappings for inspector and warehouse
