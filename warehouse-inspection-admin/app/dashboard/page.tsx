@@ -28,14 +28,14 @@ export default function DashboardPage() {
       <StatsCards stats={stats || {} as DashboardStats} isLoading={loading} />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <ModernCard isLoading={loading}>
+        {/* <ModernCard isLoading={loading}>
           <ModernCardHeader>
             <ModernCardTitle>Inspection Trends</ModernCardTitle>
           </ModernCardHeader>
           <ModernCardContent>
             <InspectionChart />
           </ModernCardContent>
-        </ModernCard>
+        </ModernCard> */}
 
         <ModernCard isLoading={loading}>
           <ModernCardHeader>

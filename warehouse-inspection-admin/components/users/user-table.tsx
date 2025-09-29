@@ -133,9 +133,9 @@ export function UserTable({ onCreateUser, onEditUser, onDeleteUser, reloadKey = 
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEditUser(u) }} aria-label="Edit user">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteUser(u) }} aria-label="Delete user">
+                    {/* <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteUser(u) }} aria-label="Delete user">
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </Button> */}
                   </TableCell>
                 </TableRow>
               ))}

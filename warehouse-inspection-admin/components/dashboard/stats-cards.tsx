@@ -60,13 +60,7 @@ export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
       description: "Active Managers",
       bgColor: "bg-pink-500",
     },
-    {
-      title: "Average Score",
-      value: `${stats.averageScore}%`,
-      icon: TrendingUp,
-      description: "Overall performance",
-      bgColor: "bg-emerald-500",
-    },
+   
   ]
 
   if (isLoading) {

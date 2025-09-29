@@ -72,18 +72,18 @@ const navigation = [
     icon: Warehouse,
     roles: ["Admin"],
   },
-  {
-    name: "Reports",
-    href: "/reports",
-    icon: TrendingUp,
-    roles: ["Admin", ],
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-    roles: ["Admin"],
-  },
+  // {
+  //   name: "Reports",
+  //   href: "/reports",
+  //   icon: TrendingUp,
+  //   roles: ["Admin", ],
+  // },
+  // {
+  //   name: "Settings",
+  //   href: "/settings",
+  //   icon: Settings,
+  //   roles: ["Admin"],
+  // },
 ]
 
 interface SidebarProps {
