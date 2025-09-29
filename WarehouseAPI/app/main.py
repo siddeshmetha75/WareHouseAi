@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from .routers import crop_year as crop_year_router
 from .routers import season as season_router
 from .routers import hierarchy as hierarchy_router
+from .routers import user_warehouse as user_warehouse_router
 
 from .routers import commodity_warehouse_map as commodity_warehouse_map_router
 from .routers import remark as remark_router
@@ -47,6 +48,7 @@ app.include_router(crop_year_router.router)
 app.include_router(season_router.router)
 app.include_router(commodity_warehouse_map_router.router)
 app.include_router(hierarchy_router.router)
+app.include_router(user_warehouse_router.router)
 
 app.include_router(inspector_router.router)
 app.include_router(manager_router.router)

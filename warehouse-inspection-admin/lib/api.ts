@@ -359,6 +359,50 @@ export async function updateUser(id: number, payload: UpdateApiUser): Promise<Ap
   return data
 }
 
+// User-Warehouse mapping
+export interface ApiUserWarehouseMap {
+  Id_User_Warehouse_Map: number
+  User_id: number
+  Warehouse_id: number
+  Manager_id: number
+  UserName?: string | null
+  UserFullName?: string | null
+  ManagerName?: string | null
+  ManagerFullName?: string | null
+  WarehouseName?: string | null
+}
+
+export interface CreateUserWarehouseMap {
+  User_id: number
+  Warehouse_id: number
+  Manager_id: number
+}
+
+export interface UpdateUserWarehouseMap {
+  User_id?: number
+  Warehouse_id?: number
+  Manager_id?: number
+}
+
+export async function getUserWarehouseMaps(): Promise<ApiUserWarehouseMap[]> {
+  const { data } = await api.get<ApiUserWarehouseMap[]>("/user-warehouse/")
+  return data
+}
+
+export async function createUserWarehouseMap(payload: CreateUserWarehouseMap): Promise<ApiUserWarehouseMap> {
+  const { data } = await api.post<ApiUserWarehouseMap>("/user-warehouse/", payload)
+  return data
+}
+
+export async function updateUserWarehouseMap(id: number, payload: UpdateUserWarehouseMap): Promise<ApiUserWarehouseMap> {
+  const { data } = await api.put<ApiUserWarehouseMap>(`/user-warehouse/${id}`, payload)
+  return data
+}
+
+export async function deleteUserWarehouseMap(id: number): Promise<void> {
+  await api.delete(`/user-warehouse/${id}`)
+}
+
 export async function deleteUserAccount(id: number): Promise<void> {
   await api.delete(`/users/${id}`)
 }

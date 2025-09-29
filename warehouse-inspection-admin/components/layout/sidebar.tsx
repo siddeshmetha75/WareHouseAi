@@ -67,6 +67,12 @@ const navigation = [
     roles: ["Admin"],
   },
   {
+    name: "User-Warehouse Map",
+    href: "/admin/user-warehouse",
+    icon: Warehouse,
+    roles: ["Admin"],
+  },
+  {
     name: "Reports",
     href: "/reports",
     icon: TrendingUp,
