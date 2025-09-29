@@ -66,8 +66,14 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
     if (v === "pending") return "mr-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 border border-amber-200"
     return "mr-2 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200"
   }
-
   const [answers, setAnswers] = useState<Record<number, AnswerDraft>>({})
+  const [uploadedPreviews, setUploadedPreviews] = useState<Record<number, { url: string; type: string }[]>>({})
+  // Revoke created object URLs on unmount or when list changes to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      Object.values(uploadedPreviews).forEach((arr) => arr.forEach((p) => URL.revokeObjectURL(p.url)))
+    }
+  }, [uploadedPreviews])
   const [submitting, setSubmitting] = useState(false)
   const [msg, setMsg] = useState<string>("")
   const [err, setErr] = useState<string>("")
@@ -75,16 +81,19 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     if (!data) return
-    // Prefill answers from API
-    const map: Record<number, AnswerDraft> = {}
-    data.answers.forEach(a => {
-      map[a.question_id] = {
-        answer: a.answer || "",
-        remarks: a.remarks || "",
-        files: [],
-      }
+    // Merge answers from API but preserve any in-progress edits in local state
+    setAnswers(prev => {
+      const merged: Record<number, AnswerDraft> = { ...prev }
+      data.answers.forEach((a) => {
+        const existing = prev[a.question_id]
+        merged[a.question_id] = {
+          answer: existing?.answer ?? (a.answer || ""),
+          remarks: existing?.remarks ?? (a.remarks || ""),
+          files: existing?.files ?? [],
+        }
+      })
+      return merged
     })
-    setAnswers(map)
   }, [data])
 
   useEffect(() => {
@@ -146,12 +155,20 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
       setErr("")
       const files = answers[qid]?.files || []
       if (!files.length) return
+      // Create local previews so user sees uploads immediately
+      const previews = files.map((f) => ({ url: URL.createObjectURL(f), type: f.type || "" }))
+      setUploadedPreviews((prev) => ({ ...prev, [qid]: [ ...(prev[qid] || []), ...previews ] }))
       for (const f of files) {
         await uploadEvidence(id, f, qid)
       }
       setMsg("Evidence uploaded successfully")
+      // Refresh inspection detail so newly uploaded evidence appears immediately
+      await refetch()
       // clear file list for that qid after upload
       setAnswers(prev => ({ ...prev, [qid]: { ...(prev[qid] || {}), files: [] } }))
+      // Do not clear temporary previews here; for unanswered questions the server
+      // may not attach evidence to this question yet. Let the previews remain
+      // until the user navigates away or we detect server evidence later.
     } catch (e: any) {
       setErr(e?.message || "Failed to upload evidence")
     }
@@ -363,6 +380,29 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
                                 </div>
                               </div>
                             )}
+                            {uploadedPreviews[qa.question_id]?.length ? (
+                              <div>
+                                <Label className="mb-2 block">Just Uploaded</Label>
+                                <div className="mt-2 flex flex-wrap gap-3">
+                                  {uploadedPreviews[qa.question_id]!.map((p, idx) => {
+                                    const isImage = p.type.startsWith("image/")
+                                    return (
+                                      <div key={`up-${idx}`} className="relative w-28">
+                                        {isImage ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={p.url} alt="preview" className="w-24 h-24 object-cover rounded opacity-90" />
+                                        ) : (
+                                          <div className="w-24 h-24 rounded border flex flex-col items-center justify-center gap-1 text-xs text-gray-700 bg-gray-50">
+                                            <Play className="h-5 w-5 text-blue-600" />
+                                            <span className="truncate px-1">Uploading…</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ) : null}
                             <div>
                               <Label className="mb-2 block">Add Evidence</Label>
                               <input
