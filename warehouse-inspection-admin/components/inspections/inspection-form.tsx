@@ -37,7 +37,7 @@ export function InspectionForm({ inspection, onSubmit, onCancel, isLoading = fal
   )
   const [error, setError] = useState("")
 
-  // Get inspectors for the dropdown
+ 
   const inspectors = mockUsers.filter((user) => user.role === "Inspector" || user.role === "Admin")
 
   const handleSubmit = async (e: React.FormEvent) => {
