@@ -62,6 +62,19 @@ export default function CommoditiesPage() {
 
   const uniqueCategories = useMemo(() => Array.from(new Set(rows.map((c) => c.Category).filter(Boolean))) as string[], [rows])
 
+  // Duplicate name detection (case-insensitive, trims). Prevent add/update when name already exists.
+  const duplicateExists = useMemo(() => {
+    const name = form.Commodity_Name?.trim().toLowerCase()
+    if (!name) return false
+    if (mode === "create") {
+      return rows.some((c) => (c.Commodity_Name || "").trim().toLowerCase() === name)
+    }
+    if (mode === "edit" && form.IdCommodity) {
+      return rows.some((c) => c.IdCommodity !== form.IdCommodity && (c.Commodity_Name || "").trim().toLowerCase() === name)
+    }
+    return false
+  }, [mode, form.Commodity_Name, form.IdCommodity, rows])
+
   return (
     <ProtectedRoute requiredRoles={["Admin", "Manager"]}>
       <AppShell>
@@ -106,6 +119,9 @@ export default function CommoditiesPage() {
                   <div>
                     <label className="block text-sm mb-1">Commodity Name<span className="text-red-500"> *</span></label>
                     <Input value={form.Commodity_Name} onChange={(e) => setForm({ ...form, Commodity_Name: e.target.value })} placeholder="Enter commodity name" disabled={loading} required />
+                    {duplicateExists && (
+                      <p className="mt-1 text-xs text-red-600">A commodity with this name already exists.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm mb-1">Commodity Storage</label>
@@ -132,6 +148,7 @@ export default function CommoditiesPage() {
                     try {
                       setLoading(true)
                       setError("")
+                      if (duplicateExists) return
                       if (mode === "create") {
                         await createCommodity({
                           Commodity_Name: form.Commodity_Name,
@@ -157,7 +174,7 @@ export default function CommoditiesPage() {
                     } finally {
                       setLoading(false)
                     }
-                  }} disabled={loading || !form.Commodity_Name.trim()}>
+                  }} disabled={loading || !form.Commodity_Name.trim() || duplicateExists}>
                     Save
                   </Button>
                   <Button variant="outline" onClick={() => { setMode("list"); setForm({ Commodity_Name: "", CommodityStorage: "", Category: "", Description: "", IsActive: 1 }) }} disabled={loading}>Cancel</Button>
@@ -229,31 +246,34 @@ export default function CommoditiesPage() {
                       <TableCell>{c.Category || "-"}</TableCell>
                       <TableCell className="max-w-[240px] truncate" title={c.Description || undefined}>{c.Description || "-"}</TableCell>
                       {/* IsActive hidden from UI as requested */}
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { setForm({
+                      <TableCell className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setForm({
                               IdCommodity: c.IdCommodity,
                               Commodity_Name: c.Commodity_Name || "",
                               CommodityStorage: c.CommodityStorage || "",
                               Category: c.Category || "",
                               Description: c.Description || "",
                               IsActive: c.IsActive ? 1 : 0,
-                            }); setMode("edit") }}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => deleteCommodity(c.IdCommodity).then(load)}>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            })
+                            setMode("edit")
+                          }}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => deleteCommodity(c.IdCommodity).then(load)}
+                          aria-label="Delete commodity"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
