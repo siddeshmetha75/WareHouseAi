@@ -52,8 +52,107 @@ export default function UserWarehousePage() {
     load()
   }, [])
 
+  // Auto-select manager when a user is chosen based on existing mappings
+  useEffect(() => {
+    if (!userId) return
+    const uid = Number(userId)
+    const found = maps.find((mm) => mm.User_id === uid)
+    if (found) {
+      setManagerId(String(found.Manager_id))
+    }
+  }, [userId, maps])
+
+  // If warehouse changes and user is already selected, try find manager for that specific warehouse mapping
+  useEffect(() => {
+    if (!userId || !warehouseId) return
+    const uid = Number(userId)
+    const wid = Number(warehouseId)
+    const exact = maps.find((mm) => mm.User_id === uid && mm.Warehouse_id === wid)
+    if (exact) {
+      setManagerId(String(exact.Manager_id))
+    }
+  }, [warehouseId, userId, maps])
+
+  // In edit mode, when changing the user, auto-pick the mapped manager if any
+  useEffect(() => {
+    if (!editingId || !editUserId) return
+    const uid = Number(editUserId)
+    const found = maps.find((mm) => mm.User_id === uid)
+    if (found) {
+      setEditManagerId(String(found.Manager_id))
+    }
+  }, [editUserId, editingId, maps])
+
+  // In edit mode, if warehouse changes and user is set, pick manager for that mapping
+  useEffect(() => {
+    if (!editingId || !editUserId || !editWarehouseId) return
+    const uid = Number(editUserId)
+    const wid = Number(editWarehouseId)
+    const exact = maps.find((mm) => mm.User_id === uid && mm.Warehouse_id === wid)
+    if (exact) {
+      setEditManagerId(String(exact.Manager_id))
+    }
+  }, [editWarehouseId, editUserId, editingId, maps])
+
+  // Derived: mapped manager for create form
+  const mappedManagerId = useMemo(() => {
+    if (!userId) return null
+    const uid = Number(userId)
+    if (warehouseId) {
+      const wid = Number(warehouseId)
+      const exact = maps.find((mm) => mm.User_id === uid && mm.Warehouse_id === wid)
+      if (exact) return String(exact.Manager_id)
+    }
+    const any = maps.find((mm) => mm.User_id === uid)
+    return any ? String(any.Manager_id) : null
+  }, [userId, warehouseId, maps])
+
+  // Ensure state managerId follows mappedManagerId when present
+  useEffect(() => {
+    if (mappedManagerId && managerId !== mappedManagerId) {
+      setManagerId(mappedManagerId)
+    }
+  }, [mappedManagerId])
+
+  // Derived: mapped manager for edit row
+  const mappedEditManagerId = useMemo(() => {
+    if (!editingId || !editUserId) return null
+    const uid = Number(editUserId)
+    if (editWarehouseId) {
+      const wid = Number(editWarehouseId)
+      const exact = maps.find((mm) => mm.User_id === uid && mm.Warehouse_id === wid)
+      if (exact) return String(exact.Manager_id)
+    }
+    const any = maps.find((mm) => mm.User_id === uid)
+    return any ? String(any.Manager_id) : null
+  }, [editingId, editUserId, editWarehouseId, maps])
+
+  // Ensure editManagerId follows mappedEditManagerId when present
+  useEffect(() => {
+    if (mappedEditManagerId && editManagerId !== mappedEditManagerId) {
+      setEditManagerId(mappedEditManagerId)
+    }
+  }, [mappedEditManagerId])
+
+  // Prevent duplicates: check if exact mapping already exists for create form
+  const assignExistsExact = useMemo(() => {
+    if (!userId || !warehouseId) return false
+    const uid = Number(userId)
+    const wid = Number(warehouseId)
+    return maps.some((mm) => mm.User_id === uid && mm.Warehouse_id === wid)
+  }, [userId, warehouseId, maps])
+
+  // Prevent duplicates on edit: same user+warehouse already mapped in a different row
+  const editExistsExact = useMemo(() => {
+    if (!editingId || !editUserId || !editWarehouseId) return false
+    const uid = Number(editUserId)
+    const wid = Number(editWarehouseId)
+    return maps.some((mm) => mm.User_id === uid && mm.Warehouse_id === wid && mm.Id_User_Warehouse_Map !== editingId)
+  }, [editingId, editUserId, editWarehouseId, maps])
+
   const handleAssign = async () => {
     if (!userId || !managerId || !warehouseId) return
+    if (assignExistsExact) return
     setSaving(true)
     try {
       await createUserWarehouseMap({
@@ -137,16 +236,29 @@ export default function UserWarehousePage() {
 
           <div className="space-y-2">
             <Label>Manager</Label>
-            <Select value={managerId} onValueChange={setManagerId} disabled={loading || managers.length === 0}>
+            <Select
+              value={managerId}
+              onValueChange={setManagerId}
+              disabled={loading || managers.length === 0 || !!mappedManagerId}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={managers.length ? "Select Manager" : "No managers"} />
               </SelectTrigger>
               <SelectContent>
-                {managers.map((m) => (
-                  <SelectItem key={m.idusers} value={String(m.idusers)}>
-                    {m.Full_Name || m.UserName}
-                  </SelectItem>
-                ))}
+                {mappedManagerId
+                  ? (() => {
+                      const m = managers.find((mm) => String(mm.idusers) === mappedManagerId)
+                      return (
+                        <SelectItem key={mappedManagerId} value={mappedManagerId}>
+                          {m ? (m.Full_Name || m.UserName) : `Manager #${mappedManagerId}`}
+                        </SelectItem>
+                      )
+                    })()
+                  : managers.map((m) => (
+                      <SelectItem key={m.idusers} value={String(m.idusers)}>
+                        {m.Full_Name || m.UserName}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>
@@ -168,7 +280,7 @@ export default function UserWarehousePage() {
           </div>
 
           <div>
-            <Button onClick={handleAssign} disabled={saving || !userId || !managerId || !warehouseId}>
+            <Button onClick={handleAssign} disabled={saving || !userId || !managerId || !warehouseId || assignExistsExact}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -178,6 +290,9 @@ export default function UserWarehousePage() {
                 "Assign"
               )}
             </Button>
+            {assignExistsExact && (
+              <p className="text-xs text-muted-foreground mt-1">This user is already mapped to the selected warehouse.</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -219,16 +334,29 @@ export default function UserWarehousePage() {
                   </TableCell>
                   <TableCell>
                     {editingId === m.Id_User_Warehouse_Map ? (
-                      <Select value={editManagerId} onValueChange={setEditManagerId} disabled={saving || managers.length === 0}>
+                      <Select
+                        value={editManagerId}
+                        onValueChange={setEditManagerId}
+                        disabled={saving || managers.length === 0 || !!mappedEditManagerId}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder={managers.length ? "Select Manager" : "No managers"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {managers.map((u) => (
-                            <SelectItem key={u.idusers} value={String(u.idusers)}>
-                              {u.Full_Name || u.UserName}
-                            </SelectItem>
-                          ))}
+                          {mappedEditManagerId
+                            ? (() => {
+                                const em = managers.find((mm) => String(mm.idusers) === mappedEditManagerId)
+                                return (
+                                  <SelectItem key={mappedEditManagerId} value={mappedEditManagerId}>
+                                    {em ? (em.Full_Name || em.UserName) : `Manager #${mappedEditManagerId}`}
+                                  </SelectItem>
+                                )
+                              })()
+                            : managers.map((u) => (
+                                <SelectItem key={u.idusers} value={String(u.idusers)}>
+                                  {u.Full_Name || u.UserName}
+                                </SelectItem>
+                              ))}
                         </SelectContent>
                       </Select>
                     ) : (
@@ -256,11 +384,14 @@ export default function UserWarehousePage() {
                   <TableCell className="flex gap-2">
                     {editingId === m.Id_User_Warehouse_Map ? (
                       <>
-                        <Button size="sm" variant="default" onClick={saveEdit} disabled={saving || !editUserId || !editManagerId || !editWarehouseId}>
+                        <Button size="sm" variant="default" onClick={saveEdit} disabled={saving || !editUserId || !editManagerId || !editWarehouseId || editExistsExact}>
                           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           Save
                         </Button>
                         <Button size="sm" variant="outline" onClick={cancelEdit} disabled={saving}>Cancel</Button>
+                        {editExistsExact && (
+                          <span className="text-xs text-muted-foreground">Mapping already exists for this user and warehouse.</span>
+                        )}
                       </>
                     ) : (
                       <>

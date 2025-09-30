@@ -477,3 +477,56 @@ export async function updateCommodity(id: number, payload: UpdateApiCommodity): 
 export async function deleteCommodity(id: number): Promise<void> {
   await api.delete(`/commodities/${id}`)
 }
+
+// Seasons
+export interface ApiSeason {
+  IdSeason: number
+  Season_Name: string
+}
+
+export async function getSeasons(): Promise<ApiSeason[]> {
+  const { data } = await api.get<ApiSeason[]>(`/seasons`)
+  return data
+}
+
+// Commodity-Warehouse Map CRUD (manager-inspector mapping with commodity & season)
+export interface ApiCommodityWarehouseMapAll {
+  Id_CommodityWarehouseMap: number
+  WarehouseId: number
+  ManagerId: number
+  InspectorId: number
+  CommodityId: number
+  SeasonId: number
+  Is_Active: number | null
+}
+
+export interface CreateCommodityWarehouseMapPayload {
+  WarehouseId: number
+  ManagerId: number
+  InspectorId: number
+  CommodityId: number
+  SeasonId: number
+  Is_Active?: number
+}
+
+export async function getAllCommodityWarehouseMaps(): Promise<ApiCommodityWarehouseMapAll[]> {
+  const { data } = await api.get<ApiCommodityWarehouseMapAll[]>(`/commodity-warehouse-map/`)
+  return data
+}
+
+export async function createCommodityWarehouseMap(payload: CreateCommodityWarehouseMapPayload): Promise<ApiCommodityWarehouseMapAll> {
+  const { data } = await api.post<ApiCommodityWarehouseMapAll>(`/commodity-warehouse-map/`, payload)
+  return data
+}
+
+export async function deleteCommodityWarehouseMap(id: number): Promise<void> {
+  await api.delete(`/commodity-warehouse-map/${id}`)
+}
+
+export async function updateCommodityWarehouseMap(
+  id: number,
+  payload: Partial<CreateCommodityWarehouseMapPayload>
+): Promise<ApiCommodityWarehouseMapAll> {
+  const { data } = await api.put<ApiCommodityWarehouseMapAll>(`/commodity-warehouse-map/${id}`, payload)
+  return data
+}
