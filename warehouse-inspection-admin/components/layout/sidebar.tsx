@@ -43,6 +43,12 @@ const navigation = [
     roles: ["Manager"],
   },
   {
+    name: "Inspector Mapping",
+    href: "/manager/mappings",
+    icon: Package,
+    roles: ["Manager"],
+  },
+  {
     name: "Inspectors",
     href: "/manager/inspectors",
     icon: Users,
