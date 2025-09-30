@@ -8,16 +8,19 @@ from ..models import Inspections, InspectionAnswers,Evidence, CommoditySeason, Q
 
 from ..schemas.inspection import ApproveRequest
 from sqlalchemy.orm import joinedload, contains_eager
+from .. import models
+from ..models import Users
+from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/api", tags=["Manager"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 
 @router.get("/inspections")
@@ -25,7 +28,8 @@ def list_inspections(
     pending_only: bool = False,
     inspector_id: Optional[int] = None,
     status: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
+    , current_user: Users = Depends(require_auth_token)
 ):
     q = db.query(Inspections)
     if pending_only:
@@ -73,7 +77,7 @@ def list_inspections(
 
 
 @router.get("/inspection-answers/{inspection_id}")
-def get_answers(inspection_id: int, db: Session = Depends(get_db)):
+def get_answers(inspection_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     rows = (
         db.query(InspectionAnswers, Questions)
         .join(Questions, Questions.id == InspectionAnswers.question_id)
@@ -130,7 +134,8 @@ def get_answers(inspection_id: int, db: Session = Depends(get_db)):
 def review_inspection(
     inspection_id: int,
     payload: dict,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
+    , current_user: Users = Depends(require_auth_token)
 ):
     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
     if not entity:
@@ -182,7 +187,7 @@ def review_inspection(
 
 
 @router.get("/managers/{manager_id}/inspectors")
-def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db)):
+def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     sub = (
         db.query(UserWarehouseMap.User_id)
         .filter(UserWarehouseMap.Manager_id == manager_id)
@@ -203,7 +208,7 @@ def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/managers/{manager_id}/inspections")
-def get_manager_inspections(manager_id: int, status: Optional[str] = None, db: Session = Depends(get_db)):
+def get_manager_inspections(manager_id: int, status: Optional[str] = None, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     q = db.query(Inspections).filter(Inspections.Manager_Id == manager_id)
     if status:
         if status not in ("Pending", "Accepted", "Rejected"):
@@ -315,7 +320,7 @@ def get_manager_inspections(manager_id: int, status: Optional[str] = None, db: S
 
 
 @router.get("/inspections/{inspection_id}")
-def get_inspection_details(inspection_id: int, db: Session = Depends(get_db)):
+def get_inspection_details(inspection_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
 
     # Fetch inspection with related objects using joinedload
     inspection = db.query(Inspections).options(

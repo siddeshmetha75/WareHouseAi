@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from .. import models
+from ..models import Users
+from ..dependencies import require_auth_token, get_db
 
 from ..database import SessionLocal
 from ..models import UserWarehouseMap as UWModel, Users as UserModel, Warehouses as WarehouseModel
@@ -13,12 +16,12 @@ from ..schemas.user_warehouse import (
 router = APIRouter(prefix="/user-warehouse", tags=["UserWarehouse"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 
 def _to_response(db: Session, record: UWModel) -> UserWarehouseMapResponse:
@@ -39,13 +42,13 @@ def _to_response(db: Session, record: UWModel) -> UserWarehouseMapResponse:
 
 
 @router.get("/", response_model=List[UserWarehouseMapResponse])
-def list_maps(db: Session = Depends(get_db)):
+def list_maps(db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     records = db.query(UWModel).all()
     return [_to_response(db, r) for r in records]
 
 
 @router.get("/{map_id}", response_model=UserWarehouseMapResponse)
-def get_map(map_id: int, db: Session = Depends(get_db)):
+def get_map(map_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     record = db.query(UWModel).filter(UWModel.Id_User_Warehouse_Map == map_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Mapping not found")
@@ -53,7 +56,7 @@ def get_map(map_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=UserWarehouseMapResponse, status_code=status.HTTP_201_CREATED)
-def create_map(payload: UserWarehouseMapCreate, db: Session = Depends(get_db)):
+def create_map(payload: UserWarehouseMapCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     record = UWModel(**payload.model_dump())
     db.add(record)
     db.commit()
@@ -62,7 +65,7 @@ def create_map(payload: UserWarehouseMapCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{map_id}", response_model=UserWarehouseMapResponse)
-def update_map(map_id: int, payload: UserWarehouseMapUpdate, db: Session = Depends(get_db)):
+def update_map(map_id: int, payload: UserWarehouseMapUpdate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     record = db.query(UWModel).filter(UWModel.Id_User_Warehouse_Map == map_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Mapping not found")
@@ -74,7 +77,7 @@ def update_map(map_id: int, payload: UserWarehouseMapUpdate, db: Session = Depen
 
 
 @router.delete("/{map_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_map(map_id: int, db: Session = Depends(get_db)):
+def delete_map(map_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     record = db.query(UWModel).filter(UWModel.Id_User_Warehouse_Map == map_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Mapping not found")

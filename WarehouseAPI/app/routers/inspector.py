@@ -5,6 +5,10 @@ from fastapi import Form
 from datetime import datetime
 from ..database import SessionLocal
 from ..models import Warehouses, UserWarehouseMap, Questions, Inspections, InspectionAnswers, Evidence, Users, Commoditymaster, Seasons, Managers
+# from ..auth import require_auth_token, require_custom_token
+from .. import models
+from ..models import Users
+from ..dependencies import require_auth_token, get_db
 
 from ..schemas.inspection import (
     InspectionCreateRequest,
@@ -14,21 +18,25 @@ from ..schemas.inspection import (
     InspectionCreateWithAnswersResponse,
     InspectionUpdateRequest
 )
-from ..auth import get_current_user
+# from ..auth import get_current_user
 
 router = APIRouter(prefix="/api", tags=["Inspector"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
+
+# @router.get("/protected")
+# def protected_route():
+#     return {"message": "Auth not implemented yet"}
 
 
 @router.get("/warehouses", response_model=List[dict])
-def get_inspector_warehouses(inspector_id: int, db: Session = Depends(get_db)):
+def get_inspector_warehouses(inspector_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     q = (
         db.query(Warehouses)
         .join(UserWarehouseMap, UserWarehouseMap.Warehouse_id == Warehouses.Id_Warehouse)
@@ -54,7 +62,7 @@ def get_inspector_warehouses(inspector_id: int, db: Session = Depends(get_db)):
 @router.post("/inspections", response_model=InspectionCreateWithAnswersResponse)
 def create_inspection(
     payload: InspectionWithAnswersCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     mapping = (
         db.query(UserWarehouseMap)
@@ -104,7 +112,7 @@ def save_answers(
     inspection_id: int,
     answers: list[InspectionAnswerCreate],
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: Users = Depends(require_auth_token),
 ):
     if current_user.get("role", "").lower() != "inspector":
         raise HTTPException(status_code=403, detail="Only inspectors can submit answers")
@@ -127,7 +135,7 @@ def save_answers(
 # ...existing code...
 
 @router.get("/inspectors/{inspector_id}/inspections")
-def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db)):
+def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     rows = (
         db.query(Inspections)
         .filter(Inspections.Inspector_Id == inspector_id)
@@ -164,7 +172,7 @@ def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/inspectors/{inspector_id}/inspections")
-def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db)):
+def list_inspector_inspections(inspector_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     rows = (
         db.query(Inspections)
         .filter(Inspections.Inspector_Id == inspector_id)
@@ -223,7 +231,7 @@ def upload_evidence(
     inspection_id: int,
     file: UploadFile = File(...),
     question_id: int = Form(...),  # <-- Accept question_id from form data
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     if not db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first():
         raise HTTPException(status_code=404, detail="Inspection not found")
@@ -250,7 +258,7 @@ def upload_evidence(
 def delete_evidence(
     inspection_id: int,
     evidence_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     # Ensure inspection exists
     if not db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first():
@@ -272,7 +280,7 @@ def delete_evidence(
 def update_inspection(
     inspection_id: int,
     payload: InspectionUpdateRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     inspection = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
     if not inspection:

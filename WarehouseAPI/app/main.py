@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
-from fastapi import HTTPException
+from fastapi import HTTPException, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .database import SessionLocal, engine, Base
 from .routers import warehouse as warehouse_router
@@ -18,7 +19,8 @@ from .routers import crop_year as crop_year_router
 from .routers import season as season_router
 from .routers import hierarchy as hierarchy_router
 from .routers import user_warehouse as user_warehouse_router
-
+from .models import CustomToken, AuthToken
+import datetime, jwt
 from .routers import commodity_warehouse_map as commodity_warehouse_map_router
 from .routers import remark as remark_router
 import os
@@ -56,6 +58,7 @@ app.include_router(admin_router.router)
 app.include_router(questions_router.router)
 app.include_router(remark_router.router)
 Base.metadata.create_all(bind=engine)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 # app = FastAPI(title="Warehouse Inspection API")
 
@@ -66,17 +69,70 @@ def get_db():
         yield db
     finally:
         db.close()
-@app.post("/auth/login", response_model=schemas.LoginResponse, tags=["Auth"])
-def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
+# @app.post("/auth/login", response_model=schemas.LoginResponse, tags=["Auth"])
+# def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
+#     user = crud.authenticate_user(db, request.EmailId, request.Password)
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Invalid email or password")
+#     # Lightweight JWT token (unsigned dev token if PyJWT unavailable)
+#     try:
+#         import jwt  # type: ignore
+#         token = jwt.encode({"sub": user.idusers, "role": user.Role}, "dev-secret", algorithm="HS256")
+#     except Exception:
+#         token = f"token-{user.idusers}"
+#     return {
+#         "id": user.idusers,
+#         "UserName": user.UserName,
+#         "Role": user.Role,
+#         "EmailId": user.EmailId,
+#         "message": "Login successful",
+#         "token": token,
+#     }
+@app.post("/auth/login")
+def login(
+    request: schemas.LoginRequest,
+    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    # Step 1: Authenticate credentials
     user = crud.authenticate_user(db, request.EmailId, request.Password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    # Lightweight JWT token (unsigned dev token if PyJWT unavailable)
+
+    # Step 2: Extract token from Authorization: Bearer <token>
+    if not creds or not creds.credentials:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    custom_token = creds.credentials
+
+    # Step 3: Validate the token against CustomToken table
+    token_record = db.query(CustomToken).filter(CustomToken.Token == custom_token).first()
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid custom token")
+
+    # Step 4: Generate new auth token (JWT)
     try:
-        import jwt  # type: ignore
-        token = jwt.encode({"sub": user.idusers, "role": user.Role}, "dev-secret", algorithm="HS256")
+        token = jwt.encode(
+            {
+                "sub": user.idusers,
+                "role": user.Role,
+                "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+            },
+            "dev-secret",
+            algorithm="HS256",
+        )
     except Exception:
-        token = f"token-{user.idusers}"
+        token = f"token-{user.idusers}-{int(datetime.datetime.utcnow().timestamp())}"
+
+    # Step 5: Save/update in AuthToken table
+    existing_auth = db.query(AuthToken).filter(AuthToken.User_Id == user.idusers).first()
+    if existing_auth:
+        existing_auth.Token = token
+        existing_auth.Insert_Date = datetime.datetime.utcnow()
+    else:
+        db.add(AuthToken(User_Id=user.idusers, Token=token))
+
+    db.commit()
+
     return {
         "id": user.idusers,
         "UserName": user.UserName,
@@ -85,6 +141,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         "message": "Login successful",
         "token": token,
     }
+
 
 # Mount uploads directory as static for serving evidence files
 uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))

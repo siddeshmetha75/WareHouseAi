@@ -58,6 +58,7 @@ class MapRead(MapCreate):
 class LoginRequest(BaseModel):
     EmailId: str
     Password: str
+    custom_token: str
 
 class LoginResponse(BaseModel):
     id: int

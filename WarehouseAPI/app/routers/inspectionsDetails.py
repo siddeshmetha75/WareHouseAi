@@ -7,18 +7,21 @@ from app.models import Inspections, Seasons
 from ..models import Inspections, Warehouses, Users, Managers, InspectionAnswers
 from ..schemas.inspection import InspectionCreate, InspectionUpdate,InspectionDetailsResponse, InspectionResponse
 import json
+from .. import models
+from ..models import Users
+from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/inspectionsDetails", tags=["Inspections"])
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 @router.put("/{inspection_id}", response_model=InspectionResponse)
-def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session = Depends(get_db)):
+def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(Inspections).filter(Inspections.Id_Inspections == inspection_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Inspection not found")

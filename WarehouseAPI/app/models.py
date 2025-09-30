@@ -27,6 +27,13 @@ class Commoditymaster(Base):
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='commoditymaster')
 
 
+class CustomToken(Base):
+    __tablename__ = 'custom_token'
+
+    IdCustomToken: Mapped[int] = mapped_column(Integer, primary_key=True)
+    Token: Mapped[Optional[str]] = mapped_column(String(5000))
+
+
 class Questions(Base):
     __tablename__ = 'questions'
 
@@ -63,6 +70,7 @@ class Users(Base):
     Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
     UserId: Mapped[Optional[int]] = mapped_column(Integer)
 
+    auth_token: Mapped[list['AuthToken']] = relationship('AuthToken', back_populates='users')
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.InspectorId]', back_populates='users')
     commodity_warehouse_map_: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.ManagerId]', back_populates='users_')
     managers: Mapped[list['Managers']] = relationship('Managers', back_populates='users')
@@ -86,6 +94,21 @@ class Warehouses(Base):
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='warehouses')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Warehouse')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='warehouses')
+
+
+class AuthToken(Base):
+    __tablename__ = 'auth_token'
+    __table_args__ = (
+        ForeignKeyConstraint(['User_Id'], ['users.idusers'], name='fk_userId_token'),
+        Index('fk_userId_token_idx', 'User_Id')
+    )
+
+    IdAuthToken: Mapped[int] = mapped_column(Integer, primary_key=True)
+    User_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    Token: Mapped[Optional[str]] = mapped_column(String(5000))
+    Insert_Date: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+
+    users: Mapped['Users'] = relationship('Users', back_populates='auth_token')
 
 
 class CommoditySeason(Base):
