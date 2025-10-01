@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { LayoutDashboard, Users, Warehouse, ClipboardCheck, BarChart3, Settings, Menu, Package, CheckCircle2, Clock, FileText, TrendingUp } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Shimmer, ShimmerSidebar } from "@/components/ui/shimmer"
+import { useRouter } from "next/navigation"
 
 const navigation = [
   {
@@ -95,10 +96,10 @@ const navigation = [
 interface SidebarProps {
   className?: string
 }
-
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, logout } = useAuth()
+  const router = useRouter()
 
   const filteredNavigation = navigation.filter((item) => {
     if (!user) return false
@@ -114,8 +115,8 @@ export function Sidebar({ className }: SidebarProps) {
   }
 
   return (
-    <div className={cn("pb-12 bg-blue-700 text-white", className)}>
-      <div className="space-y-4 py-4">
+    <div className={cn("pb-3 bg-blue-700 text-white h-full flex flex-col", className)}>
+      <div className="space-y-4 py-4 flex-1">
         <div className="px-3 py-2">
           <div className="flex items-center mb-6">
             <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
@@ -145,6 +146,14 @@ export function Sidebar({ className }: SidebarProps) {
             ))}
           </div>
         </div>
+      </div>
+      <div className="px-3 mt-auto">
+        <Button
+          onClick={() => { logout(); router.push("/login") }}
+          className="w-full justify-center bg-blue-600 hover:bg-blue-500 text-white"
+        >
+          Logout
+        </Button>
       </div>
     </div>
   )
