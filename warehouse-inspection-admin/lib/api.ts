@@ -7,16 +7,28 @@ const api = axios.create({ baseURL: "http://127.0.0.1:8000" })
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || localStorage.getItem("warehouse_auth_token")
+  // Only attach JWT if caller did not explicitly set Authorization
   if (token) {
     config.headers = config.headers ?? {}
-    config.headers["Authorization"] = `Bearer ${token}`
+    if (!config.headers["Authorization"]) {
+      config.headers["Authorization"] = `Bearer ${token}`
+    }
   }
   return config
 })
 
-export async function login(email: string, password: string) {
-  const { data } = await api.post("/auth/login", { EmailId: email, Password: password })
-  if (data?.token) localStorage.setItem("token", data.token)
+export async function login(email: string, password: string, customToken: string = "MyCustomToken") {
+  // Provide the custom token required by backend for login
+  const { data } = await api.post(
+    "/auth/login",
+    { EmailId: email, Password: password },
+    { headers: { Authorization: `Bearer ${customToken}` } }
+  )
+  if (data?.token) {
+    localStorage.setItem("token", data.token)
+    // keep backward compat with any code reading warehouse_auth_token
+    localStorage.setItem("warehouse_auth_token", data.token)
+  }
   return data
 }
 

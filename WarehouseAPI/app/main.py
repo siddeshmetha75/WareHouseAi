@@ -13,20 +13,24 @@ from .routers import admin as admin_router
 from .routers import questions as questions_router
 from . import crud, schemas
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
+from typing import List
 from fastapi.staticfiles import StaticFiles
 from .routers import crop_year as crop_year_router
 from .routers import season as season_router
 from .routers import hierarchy as hierarchy_router
 from .routers import user_warehouse as user_warehouse_router
 from .models import CustomToken, AuthToken
-import datetime, jwt
+import datetime
+try:
+    import jwt
+except ImportError:
+    jwt = None  # Allow startup without PyJWT; token generation below has a fallback
 from .routers import commodity_warehouse_map as commodity_warehouse_map_router
 from .routers import remark as remark_router
 import os
 
+app = FastAPI(title="Warehouse Inspection API")
 
-app = FastAPI()
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -39,6 +43,7 @@ app.add_middleware(
     allow_methods=["*"],       # allows GET, POST, PUT, DELETE, OPTIONS
     allow_headers=["*"],       # allows Authorization, Content-Type, etc.
 )
+
 Base.metadata.create_all(bind=engine)
 
 # Routers
@@ -57,7 +62,6 @@ app.include_router(manager_router.router)
 app.include_router(admin_router.router)
 app.include_router(questions_router.router)
 app.include_router(remark_router.router)
-Base.metadata.create_all(bind=engine)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 # app = FastAPI(title="Warehouse Inspection API")
