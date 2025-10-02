@@ -14,8 +14,10 @@ export function AppShell({ children, className }: AppShellProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen w-full">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:block w-72 shrink-0">
-          <Sidebar className="h-full" />
+        <aside className="hidden md:flex md:w-72 md:flex-col md:sticky md:top-0 md:h-screen">
+          <div className="flex flex-col flex-grow pt-5 bg-blue-700 border-r">
+            <Sidebar />
+          </div>
         </aside>
 
         {/* Main area */}
@@ -29,7 +31,7 @@ export function AppShell({ children, className }: AppShellProps) {
           </header>
 
           {/* Content */}
-          <main className={cn("flex-1 min-w-0", className)}>
+          <main className={cn("flex-1 overflow-y-auto min-w-0", className)}>
             {children}
           </main>
         </div>
