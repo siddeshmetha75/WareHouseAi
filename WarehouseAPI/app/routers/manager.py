@@ -379,8 +379,9 @@ def get_inspection_details(inspection_id: int, db: Session = Depends(get_db), cu
             if ev.question_id == question.id
         ]
 
-        # Prefer manager remarks array when present; otherwise include inspector's own remarks string
-        remarks_value = question_remarks if len(question_remarks) > 0 else (ans.remarks or None)
+        # Always include inspector remarks (ans.remarks) - never overwrite with manager remarks
+        # Manager remarks are handled separately in the frontend via dedicated API
+        remarks_value = ans.remarks or None
 
         per_answers.append(
             {

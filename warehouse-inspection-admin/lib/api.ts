@@ -180,6 +180,16 @@ export async function getInspectionDetail(inspectionId: number) {
   const { data } = await api.get(`/api/inspections/${inspectionId}`)
   const raw: any = data
 
+  // Fetch manager remarks separately
+  let managerRemarks: any[] = []
+  try {
+    const remarksResponse = await api.get(`/remarks/by-inspection/${inspectionId}`)
+    managerRemarks = remarksResponse.data.remarks || []
+  } catch (error) {
+    // If remarks endpoint fails, continue with empty array
+    console.warn('Failed to fetch manager remarks:', error)
+  }
+
   // Build inspection object expected by UI
   const inspection = {
     id: raw.Id_Inspections ?? raw.id,
@@ -214,20 +224,61 @@ export async function getInspectionDetail(inspectionId: number) {
 
   // Build answers array from per_answers if UI-style answers missing
   const answers = (raw.answers as any[] | undefined) ??
-    ((raw.per_answers as any[] | undefined)?.map((a) => ({
-      question_id: a.question_id ?? a.Question_Id,
-      question_text: a.question_text ?? a.Question_Text ?? "",
-      answer: a.answer ?? null,
-      // If remarks is an array of remark entries, collapse to string if needed
-      remarks: Array.isArray(a.remarks)
-        ? (a.remarks.find((r: any) => !!r?.manager_remarks)?.manager_remarks ?? null)
-        : (a.manager_remarks ?? a.Remarks ?? a.remarks ?? null),
-      evidence: (a.evidence || []).map((ev: any) => ({
-        id: ev.id,
-        file_url: toFileUrl(ev.file_path),
-        file_type: ev.file_type,
-      })),
-    })) ?? [])
+    ((raw.per_answers as any[] | undefined)?.map((a) => {
+      // Find manager remarks for this question
+      const questionManagerRemarks = managerRemarks.find((r) => r.Question_Id === (a.question_id ?? a.Question_Id))
+      
+      // Extract inspector remarks - completely ignore any manager remarks from main API
+      let inspectorRemarks = null
+      let originalRemarks = null
+      
+      // Primary source: a.remarks as string (original inspector remarks)
+      if (typeof a.remarks === 'string') {
+        inspectorRemarks = a.remarks
+        originalRemarks = a.remarks
+      } 
+      // Secondary source: a.remarks as object with Remarks/remarks property
+      else if (typeof a.remarks === 'object' && a.remarks !== null && !Array.isArray(a.remarks)) {
+        inspectorRemarks = a.remarks.Remarks || a.remarks.remarks || null
+        originalRemarks = a.remarks
+      }
+      // Tertiary source: look for inspector remarks in dedicated fields
+      else if (a.inspector_remarks || a.Inspector_Remarks) {
+        inspectorRemarks = a.inspector_remarks || a.Inspector_Remarks || null
+        originalRemarks = a.remarks
+      }
+      // If a.remarks is an array, it's manager remarks from backend - ignore it for inspector remarks
+      else if (Array.isArray(a.remarks)) {
+        // Look for inspector remarks in other fields, but NOT in a.remarks array
+        inspectorRemarks = a.inspector_remarks || a.Inspector_Remarks || a.original_remarks || null
+        originalRemarks = null // Don't show manager remarks array in "Additional Remarks"
+      }
+      // Final fallback
+      else {
+        inspectorRemarks = a.inspector_remarks || a.Inspector_Remarks || a.original_remarks || null
+        originalRemarks = a.remarks
+      }
+      
+      return {
+        question_id: a.question_id ?? a.Question_Id,
+        question_text: a.question_text ?? a.Question_Text ?? "",
+        answer: a.answer ?? null,
+        // Extract inspector remarks from various possible fields
+        inspector_remarks: inspectorRemarks,
+        // Also preserve the original remarks field for additional display
+        remarks: originalRemarks,
+        // Map manager remarks from remarks table (this takes precedence over a.remarks array)
+        manager_remarks: questionManagerRemarks ? [{
+          status: questionManagerRemarks.Status,
+          manager_remarks: questionManagerRemarks.Remarks
+        }] : [],
+        evidence: (a.evidence || []).map((ev: any) => ({
+          id: ev.id,
+          file_url: toFileUrl(ev.file_path),
+          file_type: ev.file_type,
+        })),
+      }
+    }) ?? [])
 
   // Build top-level evidence array
   const evidence = ((raw.evidence as any[] | undefined) ?? []).map((ev) => ({

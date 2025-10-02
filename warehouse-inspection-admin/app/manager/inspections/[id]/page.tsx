@@ -37,6 +37,22 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
     enabled: !!inspectionId,
   })
 
+  // Cache original inspector remarks to preserve them when backend overwrites remarks field
+  const originalInspectorRemarks = useMemo(() => {
+    const map = new Map<number, string | null>()
+    // Store original inspector remarks from the initial data load
+    detail?.answers.forEach((answer) => {
+      if (answer.inspector_remarks && typeof answer.inspector_remarks === 'string') {
+        map.set(answer.question_id, answer.inspector_remarks)
+      } else if (answer.inspector_remarks && typeof answer.inspector_remarks === 'object') {
+        // Handle object case
+        const remarks = answer.inspector_remarks.Remarks || answer.inspector_remarks.remarks
+        if (remarks) map.set(answer.question_id, remarks)
+      }
+    })
+    return map
+  }, [detail])
+
   // Hooks must be declared before any early returns
   const remarksByQuestion = useMemo(() => {
     const map = new Map<number, { Id_Remark?: number; Status?: string | null; Remarks?: string | null }>()
@@ -154,7 +170,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
           {inspection.manager_remarks && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-600 mb-2">Manager Remarks</p>
-              <p className="text-gray-900">{inspection.manager_remarks}</p>
+              <p className="text-gray-900">{String(inspection.manager_remarks)}</p>
             </div>
           )}
         </ModernCardContent>
@@ -169,14 +185,14 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
           <div className="space-y-6">
             {answers.map((answer) => (
               <div key={answer.question_id} className="rounded-xl border border-gray-200 p-6 bg-white">
-                <p className="font-semibold text-gray-900 mb-3">{answer.question_text}</p>
+                <p className="font-semibold text-gray-900 mb-3">{String(answer.question_text)}</p>
                 <div className="space-y-2">
                   <p className="text-gray-700">
-                    <strong className="text-gray-900">Answer:</strong> {answer.answer ?? "—"}
+                    <strong className="text-gray-900">Answer:</strong> {String(answer.answer ?? "—")}
                   </p>
-                  {answer.remarks && (
+                  {(originalInspectorRemarks.get(answer.question_id) || answer.inspector_remarks) && (
                     <p className="text-gray-600">
-                      <strong className="text-gray-900">Remarks:</strong> {answer.remarks}
+                      <strong className="text-gray-900">Inspector Remarks:</strong> {String(originalInspectorRemarks.get(answer.question_id) || (typeof answer.inspector_remarks === 'object' && answer.inspector_remarks !== null ? String(answer.inspector_remarks.Remarks || answer.inspector_remarks.remarks || "—") : String(answer.inspector_remarks || "—")))}
                     </p>
                   )}
                   {answer.evidence && answer.evidence.length > 0 && (
@@ -197,11 +213,19 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                       <div>
                         <div className="text-xs uppercase text-slate-500">Current Status</div>
-                        <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Status || "—"}</div>
+                        <div className="text-sm">
+                          {answer.manager_remarks && answer.manager_remarks.length > 0 
+                            ? String(answer.manager_remarks[0]?.status || "—") 
+                            : String(remarksByQuestion.get(answer.question_id)?.Status || "—")}
+                        </div>
                       </div>
                       <div>
                         <div className="text-xs uppercase text-slate-500">Current Remark</div>
-                        <div className="text-sm">{remarksByQuestion.get(answer.question_id)?.Remarks || "—"}</div>
+                        <div className="text-sm">
+                          {answer.manager_remarks && answer.manager_remarks.length > 0 
+                            ? String(answer.manager_remarks[0]?.manager_remarks || "—") 
+                            : String(remarksByQuestion.get(answer.question_id)?.Remarks || "—")}
+                        </div>
                       </div>
                     </div>
                     {/* Editable controls */}
@@ -210,7 +234,10 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                         <label className="block text-xs uppercase text-slate-500 mb-1">Set Status</label>
                         <select
                           className="w-full border rounded px-2 py-1 text-sm"
-                          value={editStatus[answer.question_id] ?? remarksByQuestion.get(answer.question_id)?.Status ?? ""}
+                          value={editStatus[answer.question_id] ?? 
+                            (answer.manager_remarks && answer.manager_remarks.length > 0 
+                              ? String(answer.manager_remarks[0]?.status || "") 
+                              : String(remarksByQuestion.get(answer.question_id)?.Status || ""))}
                           onChange={(e) => setEditStatus((s) => ({ ...s, [answer.question_id]: e.target.value }))}
                         >
                           <option value="">—</option>
@@ -224,7 +251,10 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
                         <textarea
                           className="w-full border rounded px-2 py-1 text-sm"
                           rows={2}
-                          value={editText[answer.question_id] ?? remarksByQuestion.get(answer.question_id)?.Remarks ?? ""}
+                          value={editText[answer.question_id] ?? 
+                            (answer.manager_remarks && answer.manager_remarks.length > 0 
+                              ? String(answer.manager_remarks[0]?.manager_remarks || "") 
+                              : String(remarksByQuestion.get(answer.question_id)?.Remarks || ""))}
                           onChange={(e) => setEditText((t) => ({ ...t, [answer.question_id]: e.target.value }))}
                           placeholder="Enter manager remark"
                         />
