@@ -19,8 +19,10 @@ from .routers import crop_year as crop_year_router
 from .routers import season as season_router
 from .routers import hierarchy as hierarchy_router
 from .routers import user_warehouse as user_warehouse_router
+from .routers import manager_dashboard as manager_dashboard_router
 from .models import CustomToken, AuthToken
 import datetime
+
 try:
     import jwt
 except ImportError:
@@ -56,6 +58,7 @@ app.include_router(season_router.router)
 app.include_router(commodity_warehouse_map_router.router)
 app.include_router(hierarchy_router.router)
 app.include_router(user_warehouse_router.router)
+app.include_router(manager_dashboard_router.router)
 
 app.include_router(inspector_router.router)
 app.include_router(manager_router.router)
@@ -92,28 +95,82 @@ def get_db():
 #         "message": "Login successful",
 #         "token": token,
 #     }
+# @app.post("/auth/login")
+# def login(
+#     request: schemas.LoginRequest,
+#     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+#     db: Session = Depends(get_db),
+# ):
+#     # Step 1: Authenticate credentials
+#     user = crud.authenticate_user(db, request.EmailId, request.Password)
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+#     # Step 2: Extract token from Authorization: Bearer <token>
+#     if not creds or not creds.credentials:
+#         raise HTTPException(status_code=401, detail="Missing authorization token")
+#     custom_token = creds.credentials
+
+#     # Step 3: Validate the token against CustomToken table
+#     token_record = db.query(CustomToken).filter(CustomToken.Token == custom_token).first()
+#     if not token_record:
+#         raise HTTPException(status_code=401, detail="Invalid custom token")
+
+#     # Step 4: Generate new auth token (JWT)
+#     try:
+#         token = jwt.encode(
+#             {
+#                 "sub": user.idusers,
+#                 "role": user.Role,
+#                 "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+#             },
+#             "dev-secret",
+#             algorithm="HS256",
+#         )
+#     except Exception:
+#         token = f"token-{user.idusers}-{int(datetime.datetime.utcnow().timestamp())}"
+
+#     # Step 5: Save/update in AuthToken table
+#     existing_auth = db.query(AuthToken).filter(AuthToken.User_Id == user.idusers).first()
+#     if existing_auth:
+#         existing_auth.Token = token
+#         existing_auth.Insert_Date = datetime.datetime.utcnow()
+#     else:
+#         db.add(AuthToken(User_Id=user.idusers, Token=token))
+
+#     db.commit()
+
+#     return {
+#         "id": user.idusers,
+#         "UserName": user.UserName,
+#         "Role": user.Role,
+#         "EmailId": user.EmailId,
+#         "message": "Login successful",
+#         "token": token,
+#     }
+
 @app.post("/auth/login")
 def login(
     request: schemas.LoginRequest,
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ):
-    # Step 1: Authenticate credentials
+    # Step 1: Authenticate email + password (hashed check)
     user = crud.authenticate_user(db, request.EmailId, request.Password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Step 2: Extract token from Authorization: Bearer <token>
+    # Step 2: Extract token from Authorization header
     if not creds or not creds.credentials:
         raise HTTPException(status_code=401, detail="Missing authorization token")
     custom_token = creds.credentials
 
-    # Step 3: Validate the token against CustomToken table
+    # Step 3: Validate custom token against DB
     token_record = db.query(CustomToken).filter(CustomToken.Token == custom_token).first()
     if not token_record:
         raise HTTPException(status_code=401, detail="Invalid custom token")
 
-    # Step 4: Generate new auth token (JWT)
+    # Step 4: Generate new JWT token
     try:
         token = jwt.encode(
             {
@@ -127,7 +184,7 @@ def login(
     except Exception:
         token = f"token-{user.idusers}-{int(datetime.datetime.utcnow().timestamp())}"
 
-    # Step 5: Save/update in AuthToken table
+    # Step 5: Save/update AuthToken table
     existing_auth = db.query(AuthToken).filter(AuthToken.User_Id == user.idusers).first()
     if existing_auth:
         existing_auth.Token = token
@@ -145,7 +202,6 @@ def login(
         "message": "Login successful",
         "token": token,
     }
-
 
 # Mount uploads directory as static for serving evidence files
 uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))

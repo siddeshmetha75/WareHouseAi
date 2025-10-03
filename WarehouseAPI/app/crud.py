@@ -3,12 +3,21 @@ from . import models, schemas
 import json
 from sqlalchemy import text
 from typing import List, Dict
+from app.utils import verify_password
+
+# def authenticate_user(db: Session, EmailId: str, Password: str):
+#     return db.query(models.Users).filter(
+#         models.Users.EmailId == EmailId,
+#         models.Users.Password == Password
+#     ).first()
 
 def authenticate_user(db: Session, EmailId: str, Password: str):
-    return db.query(models.Users).filter(
-        models.Users.EmailId == EmailId,
-        models.Users.Password == Password
-    ).first()
+    user = db.query(models.Users).filter(models.Users.EmailId == EmailId).first()
+    if not user:
+        return None
+    if not verify_password(Password, user.Password):  # bcrypt check
+        return None
+    return user
 
 def create_user(db: Session, users: schemas.UserCreate):
     db_user = models.User(**users.dict())

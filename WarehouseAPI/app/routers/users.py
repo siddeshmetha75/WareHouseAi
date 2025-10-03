@@ -8,7 +8,7 @@ from ..schemas.user import UserCreate, UserUpdate, UserResponse
 from .. import models
 from ..models import Users
 from ..dependencies import require_auth_token, get_db
-
+from app.utils import hash_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -43,10 +43,27 @@ def get_user(user_id: int, db: Session = Depends(get_db), current_user: Users = 
     return user
 
 
+# @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+# def create_user(payload: UserCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
+#     # Note: For demo, storing password as plain text matching schema; in production hash it.
+#     user = UserModel(**payload.model_dump())
+#     db.add(user)
+#     db.commit()
+#     db.refresh(user)
+#     return user
+
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
-    # Note: For demo, storing password as plain text matching schema; in production hash it.
-    user = UserModel(**payload.model_dump())
+def create_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    # Hash password before saving
+    hashed_password = hash_password(payload.Password)
+    user = UserModel(
+        **payload.model_dump(exclude={"Password"}),
+        Password=hashed_password
+    )
     db.add(user)
     db.commit()
     db.refresh(user)

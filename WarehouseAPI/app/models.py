@@ -66,7 +66,7 @@ class Users(Base):
     Full_Name: Mapped[Optional[str]] = mapped_column(String(45))
     Role: Mapped[Optional[str]] = mapped_column(String(45))
     EmailId: Mapped[Optional[str]] = mapped_column(String(45))
-    Password: Mapped[Optional[str]] = mapped_column(String(45))
+    Password: Mapped[Optional[str]] = mapped_column(String(4000))
     Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
     UserId: Mapped[Optional[int]] = mapped_column(Integer)
 
