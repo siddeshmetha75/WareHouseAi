@@ -4,12 +4,43 @@ import { MobileSidebar } from "./sidebar"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { LogOut } from "lucide-react"
 import { Shimmer } from "@/components/ui/shimmer"
 
 export function Header() {
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+
+  const getPageTitle = () => {
+    switch (pathname) {
+      case "/dashboard":
+        return "Dashboard"
+      case "/manager/inspections":
+        return "Pending Inspections"
+      case "/manager/reviewed":
+        return "Reviewed Inspections"
+      case "/manager/mappings":
+        return "Inspector Mapping"
+      case "/manager/inspectors":
+        return "Inspectors"
+      case "/inspector/dashboard":
+        return "Inspector Dashboard"
+      case "/inspector/inspections":
+        return "My Inspections"
+      case "/warehouses":
+        return "Warehouses"
+      case "/commodities":
+        return "Commodities"
+      case "/admin/users":
+        return "Users"
+      case "/admin/user-warehouse":
+        return "User-Warehouse Map"
+      default:
+        return "Dashboard"
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -25,17 +56,10 @@ export function Header() {
             <Shimmer className="h-6 w-48 bg-gray-200 rounded" />
           ) : (
             <h1 className="text-lg font-semibold md:text-xl text-gray-800">
-              Welcome back, {user?.fullName}
+              {getPageTitle()}
             </h1>
           )}
         </div>
-        <Button 
-          onClick={handleLogout} 
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
       </div>
     </header>
   )

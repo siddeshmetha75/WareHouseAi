@@ -9,7 +9,7 @@ import { ArrowLeft, FileText, User, Warehouse, Package } from "lucide-react"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
 import { ModernButton } from "@/components/ui/modern-button"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { EvidenceDisplay } from "@/components/ui/evidence-display"
+import { EvidenceDisplay, type EvidenceItem } from "@/components/ui/evidence-display"
 import { ShimmerInspectionDetail } from "@/components/ui/shimmer"
  
 
@@ -103,6 +103,11 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
   )
 
   const { inspection, answers, evidence } = detail
+
+  // Type guard function to filter evidence items with valid file_url
+  const isValidEvidenceItem = (item: any): item is EvidenceItem => {
+    return item && typeof item.file_url === 'string' && item.file_url !== undefined
+  }
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
@@ -286,7 +291,7 @@ export default function InspectionDetailPage({ params }: InspectionDetailPagePro
           </ModernCardHeader>
           <ModernCardContent>
             <EvidenceDisplay
-              evidence={evidence}
+              evidence={evidence.filter(isValidEvidenceItem)}
               onPreview={(item) =>
                 setViewer({ type: item.file_type?.startsWith("image/") ? "image" : "video", src: item.file_url })
               }

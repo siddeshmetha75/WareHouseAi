@@ -212,7 +212,8 @@ export default function UserWarehousePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <>
+      <div className="p-6 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Assign User to Manager and Warehouse</CardTitle>
@@ -413,6 +414,7 @@ export default function UserWarehousePage() {
           </Table>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   )
 }

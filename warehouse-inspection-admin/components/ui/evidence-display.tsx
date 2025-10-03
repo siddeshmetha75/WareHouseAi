@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 import { Shimmer } from "./shimmer"
 import { Download, File, Image, Play } from "lucide-react"
 
-interface EvidenceItem {
+export interface EvidenceItem {
   id: number
   file_url: string
   file_type?: string

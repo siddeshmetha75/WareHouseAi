@@ -3,11 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { LayoutDashboard, Users, Warehouse, ClipboardCheck, BarChart3, Settings, Menu, Package, CheckCircle2, Clock, FileText, TrendingUp } from "lucide-react"
+import { LayoutDashboard, Users, Warehouse, ClipboardCheck, BarChart3, Settings, Menu, Package, CheckCircle2, Clock, FileText, TrendingUp, LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Shimmer, ShimmerSidebar } from "@/components/ui/shimmer"
 
@@ -68,7 +69,7 @@ const navigation = [
   },
   {
     name: "Users",
-    href: "/users",
+    href: "/admin/users",
     icon: Users,
     roles: ["Admin"],
   },
@@ -98,7 +99,13 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
-  const { user, isLoading } = useAuth()
+  const router = useRouter()
+  const { user, isLoading, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
+  }
 
   const filteredNavigation = navigation.filter((item) => {
     if (!user) return false
@@ -114,37 +121,51 @@ export function Sidebar({ className }: SidebarProps) {
   }
 
   return (
-    <div className={cn("pb-12 bg-blue-700 text-white", className)}>
-      <div className="space-y-4 py-4">
-        <div className="px-3 py-2">
-          <div className="flex items-center mb-6">
-            <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-              <ClipboardCheck className="h-6 w-6 text-white" />
+    <div className={cn("bg-blue-700 text-white h-screen flex flex-col", className)}>
+      <div className="flex-1">
+        <div className="space-y-4 py-4">
+          <div className="px-3 py-2">
+            <div className="flex items-center mb-6">
+              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                <ClipboardCheck className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Warehouse</h2>
+                <p className="text-sm text-blue-100">Inspection Panel</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Warehouse</h2>
-              <p className="text-sm text-blue-100">Inspection Panel</p>
+            <div className="space-y-1">
+              {filteredNavigation.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start text-white hover:bg-blue-500 hover:text-white transition-colors",
+                    pathname === item.href && "bg-blue-500 font-semibold"
+                  )}
+                  asChild
+                >
+                  <Link href={item.href}>
+                    <item.icon className="mr-3 h-4 w-4" />
+                    {item.name}
+                  </Link>
+                </Button>
+              ))}
             </div>
-          </div>
-          <div className="space-y-1">
-            {filteredNavigation.map((item) => (
-              <Button
-                key={item.name}
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start text-white hover:bg-blue-500 hover:text-white transition-colors",
-                  pathname === item.href && "bg-blue-500 font-semibold"
-                )}
-                asChild
-              >
-                <Link href={item.href}>
-                  <item.icon className="mr-3 h-4 w-4" />
-                  {item.name}
-                </Link>
-              </Button>
-            ))}
           </div>
         </div>
+      </div>
+      
+      {/* Logout Button at bottom */}
+      <div className="px-3 pt-2 border-t border-blue-600" style={{ paddingBottom: '10%' }}>
+        <Button
+          onClick={handleLogout}
+          className="w-full justify-start text-white hover:bg-blue-500 hover:text-white transition-colors"
+          variant="ghost"
+        >
+          <LogOut className="mr-3 h-4 w-4" />
+          Logout
+        </Button>
       </div>
     </div>
   )
