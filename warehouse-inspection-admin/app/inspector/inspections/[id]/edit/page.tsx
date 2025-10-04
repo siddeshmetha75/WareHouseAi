@@ -129,10 +129,24 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
     try {
       setMsg("")
       setErr("")
+      setSubmitting(true)
+      
+      // Show loading state
+      setMsg("Deleting evidence...")
+      
+      // Delete the evidence
       await deleteEvidence(id, evidenceId)
+      
+      // Refresh the data
       await refetch()
+      
+      // Show success message
+      setMsg("Evidence deleted successfully")
     } catch (e: any) {
-      setErr(e?.message || "Failed to delete evidence")
+      console.error("Error deleting evidence:", e)
+      setErr(e?.message || "Failed to delete evidence. Please try again.")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -140,12 +154,44 @@ export default function EditInspectionPage({ params }: { params: { id: string } 
     try {
       setMsg("")
       setErr("")
+      setSubmitting(true)
+      
+      // Show uploading state
+      setUploadedPreviews(prev => ({
+        ...prev,
+        [qid]: [
+          ...(prev[qid] || []),
+          { url: URL.createObjectURL(file), type: file.type }
+        ]
+      }))
+      
+      // Delete the old evidence
       await deleteEvidence(id, evidenceId)
+      
+      // Upload the new evidence
       await uploadEvidence(id, file, qid)
+      
+      // Refresh the data
       await refetch()
+      
+      // Clear the preview
+      setUploadedPreviews(prev => ({
+        ...prev,
+        [qid]: []
+      }))
+      
       setMsg("Evidence replaced successfully")
     } catch (e: any) {
-      setErr(e?.message || "Failed to replace evidence")
+      console.error("Error replacing evidence:", e)
+      setErr(e?.message || "Failed to replace evidence. Please try again.")
+      
+      // Clear the preview on error
+      setUploadedPreviews(prev => ({
+        ...prev,
+        [qid]: []
+      }))
+    } finally {
+      setSubmitting(false)
     }
   }
 

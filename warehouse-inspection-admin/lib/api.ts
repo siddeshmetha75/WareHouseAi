@@ -121,20 +121,43 @@ export async function createInspectionWithAnswers(payload: {
   // Normalize to expected shape
   return {
     inspection_id: data?.inspection_id ?? data?.Id_Inspections ?? data?.id,
-    saved_answers: data?.saved_answers ?? (Array.isArray(data?.Answers) ? data.Answers.length : 0),
   }
 }
 
-export async function uploadEvidence(inspectionId: number, file: File, questionId: number) {
+export interface EvidenceUploadResponse {
+  id: number
+  file_url: string
+  file_type: string
+  question_id: number
+  inspection_id: number
+}
+
+export async function uploadEvidence(inspectionId: number, file: File, questionId: number): Promise<EvidenceUploadResponse> {
   const formData = new FormData()
-  formData.append("file", file, file.name)
-  // Include several possible keys that different backends might validate against
-  formData.append("Question_Id", questionId.toString())
+  formData.append("file", file)
+  formData.append("questionId", questionId.toString())
   formData.append("QuestionId", questionId.toString())
   formData.append("question_id", questionId.toString())
+  
   // Provide file_type if backend validates it
   if (file.type) formData.append("file_type", file.type)
-  return api.post(`/api/inspections/${inspectionId}/evidence`, formData)
+  
+  const { data } = await api.post(`/api/inspections/${inspectionId}/evidence`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  
+  return data
+}
+
+export async function deleteEvidence(inspectionId: number, evidenceId: number): Promise<void> {
+  try {
+    await api.delete(`/api/inspections/${inspectionId}/evidence/${evidenceId}`)
+  } catch (error) {
+    console.error('Failed to delete evidence:', error)
+    throw new Error('Failed to delete evidence. Please try again.')
+  }
 }
 
 // Commodity-Warehouse mappings for inspector and warehouse
