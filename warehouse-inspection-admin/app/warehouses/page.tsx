@@ -167,10 +167,10 @@ export default function WarehousesPage() {
                 <label className="block text-sm mb-1">Longitude</label>
                 <Input type="number" step="any" value={form.Longitude} onChange={(e) => setForm({ ...form, Longitude: e.target.value })} placeholder="Enter longitude" disabled={loading} required />
               </div>
-              <div className="md:col-span-2">
+              {/* <div className="md:col-span-2">
                 <label className="block text-sm mb-1">Inventory</label>
                 <Input value={form.Inventory ?? ""} onChange={(e) => setForm({ ...form, Inventory: e.target.value })} placeholder="Enter inventory (optional)" disabled={loading} />
-              </div>
+              </div> */}
             </div>
             <div className="flex gap-2 mt-4">
               <Button onClick={mode === "create" ? onCreate : onUpdate} disabled={loading || !form.Warehouse_Name.trim() || !form.Code.trim() || !form.Capacity || !form.Latitude || !form.Longitude}>
@@ -198,7 +198,7 @@ export default function WarehousesPage() {
                     <TableHead>Capacity</TableHead>
                     <TableHead>Latitude</TableHead>
                     <TableHead>Longitude</TableHead>
-                    <TableHead>Inventory</TableHead>
+      
                     <TableHead className="w-24"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -211,7 +211,7 @@ export default function WarehousesPage() {
                       <TableCell>{w.Capacity ?? "-"}</TableCell>
                       <TableCell>{w.Latitude ?? "-"}</TableCell>
                       <TableCell>{w.Longitude ?? "-"}</TableCell>
-                      <TableCell>{w.Inventory ?? "-"}</TableCell>
+                     
                       <TableCell>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => { setForm({
