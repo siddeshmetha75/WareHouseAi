@@ -2,7 +2,7 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .models import Users, AuthToken, CustomToken
 from .dependencies import get_db
 import secrets
@@ -20,12 +20,19 @@ def require_auth_token(credentials: HTTPAuthorizationCredentials = Depends(secur
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+
     token_str = credentials.credentials
     token_record = db.query(AuthToken).filter(AuthToken.Token == token_str).first()
     if not token_record:
         raise HTTPException(status_code=401, detail="Invalid auth token")
+    
+    print("Insert_Date:", token_record.Insert_Date, "UTC now:", datetime.utcnow())
 
-    if token_record.Insert_Date + timedelta(hours=24) < datetime.utcnow():
+    # if token_record.Insert_Date + timedelta(hours=24) < datetime.utcnow():
+    #     raise HTTPException(status_code=401, detail="Auth token expired")
+    
+
+    if token_record.Insert_Date + timedelta(hours=24) < datetime.now():
         raise HTTPException(status_code=401, detail="Auth token expired")
 
     user = db.query(Users).filter(Users.idusers == token_record.User_Id).first()
