@@ -64,7 +64,7 @@ def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session
     return entity
 
 @router.post("/summary", response_model=InspectionSummaryResponse)
-def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(get_db)):
+def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
 
     query = db.query(Inspections)
 
@@ -149,6 +149,7 @@ def get_inspection_graph(
     fromdate: Optional[datetime] = Query(None),
     todate: Optional[datetime] = Query(None),
     db: Session = Depends(get_db)
+    , current_user: Users = Depends(require_auth_token)
 ):
     # Query with joinedload for related tables including Seasons
     inspections = (
