@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
-from app.database import get_db, require_auth_token
+from app.database import get_db
+from app.auth import require_auth_token
 from app.models import Users, Managers, Inspections, Warehouses, Commoditymaster, Seasons
 from app.schemas.manager_dashboard import (
     ManagerDashboardResponse,
