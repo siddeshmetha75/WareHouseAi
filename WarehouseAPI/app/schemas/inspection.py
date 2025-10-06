@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+from datetime import date
 
 class InspectionBase(BaseModel):
     Warehouse_Id: int
@@ -121,3 +122,46 @@ class InspectionUpdateRequest(BaseModel):
     Manager_Remarks: Optional[str]
     Completed_At: Optional[datetime]
     answers: Optional[list["InspectionAnswerCreate"]]
+
+class InspectionSummaryRequest(BaseModel):
+    FromDate: Optional[date] = None
+    ToDate: Optional[date] = None
+
+class InspectionSummaryResponse(BaseModel):
+    total_inspection_count: int
+    in_progress: int
+    pending: int
+    completed: int
+    created_at_count: int
+
+class InspectionGraphItem(BaseModel):
+    Id_Inspections: Optional[int]
+    Warehouse_Id: Optional[int]
+    WarehouseName: Optional[str]
+    Inspector_Id: Optional[int]
+    InspectorName: Optional[str]
+    Manager_Id: Optional[int]
+    ManagerName: Optional[str]
+    Created_At: Optional[datetime]
+    Data: Optional[str]
+    Status: Optional[str]
+    Remarks: Optional[str]
+    Commodity_Id: Optional[int]
+    CommodityName: Optional[str]
+    Risk_Score: Optional[float]
+    Completed_At: Optional[datetime]
+    Manager_Approved: Optional[int]
+    Manager_Approved_At: Optional[datetime]
+    Manager_Remarks: Optional[str]
+    Season_Id: Optional[int]
+    SeasonName: Optional[str]
+
+class InspectionGraphCategory(BaseModel):
+    Count: Optional[int]
+    Inspections: List[InspectionGraphItem]
+
+class InspectionGraphResponse(BaseModel):
+    TotalInspectionCount: Optional[int]
+    InProgress: InspectionGraphCategory
+    Pending: InspectionGraphCategory
+    Completed: InspectionGraphCategory
