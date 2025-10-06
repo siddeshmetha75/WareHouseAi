@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
-from app.database import get_db
+from app.database import get_db, require_auth_token
 from app.models import Users, Managers, Inspections, Warehouses, Commoditymaster, Seasons
 from app.schemas.manager_dashboard import (
     ManagerDashboardResponse,
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/manager", tags=["Manager Dashboard"])
 @router.get("/dashboard", response_model=ManagerDashboardResponse)
 def get_manager_dashboard(
     ManagerId: int = Query(..., description=""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     # Step 1: Validate that the user exists and is a Manager
     user = db.query(Users).filter(Users.idusers == ManagerId, Users.Role == "Manager").first()
