@@ -77,6 +77,7 @@ def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(
     in_progress = query.filter(Inspections.Status == 'In Progress').count()
     pending = query.filter(Inspections.Status == 'Pending').count()
     completed = query.filter(Inspections.Status == 'Completed').count()
+    rejected = query.filter(Inspections.Status == 'Rejected').count()
 
     created_at_count = query.filter(
         Inspections.Created_At >= datetime.combine(request.FromDate or datetime.min.date(), datetime.min.time()),
@@ -88,61 +89,10 @@ def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(
         in_progress=in_progress,
         pending=pending,
         completed=completed,
+        rejected=rejected,
         created_at_count=created_at_count
     )
 
-# @router.get("/inspection-graph", response_model=InspectionGraphResponse)
-# def get_inspection_graph(
-#     fromdate: Optional[datetime] = Query(None),
-#     todate: Optional[datetime] = Query(None),
-#     db: Session = Depends(get_db)
-# ):
-#     # Base query
-#     query = db.query(Inspections)
-
-#     if fromdate:
-#         query = query.filter(Inspections.Created_At >= fromdate)
-#     if todate:
-#         query = query.filter(Inspections.Created_At <= todate)
-
-#     inspections = query.all()
-
-#     def map_inspection(i: Inspections) -> InspectionGraphItem:
-#         return InspectionGraphItem(
-#             Id_Inspections=i.Id_Inspections,
-#             Warehouse_Id=i.Warehouse_Id,
-#             WarehouseName=i.warehouses.Warehouse_Name if i.warehouses else None,
-#             Inspector_Id=i.Inspector_Id,
-#             InspectorName=i.users.Full_Name if i.users else None,
-#             Manager_Id=i.Manager_Id,
-#             ManagerName=i.managers.users.Full_Name if i.managers else None,
-#             Created_At=i.Created_At,
-#             Data=i.Data,
-#             Status=i.Status,
-#             Remarks=i.Remarks,
-#             Commodity_Id=i.Commodity_Id,
-#             CommodityName=i.commoditymaster.Commodity_Name if i.commoditymaster else None,
-#             Risk_Score=i.Risk_Score,
-#             Completed_At=i.Completed_At,
-#             Manager_Approved=i.Manager_Approved,
-#             Manager_Approved_At=i.Manager_Approved_At,
-#             Manager_Remarks=i.Manager_Remarks,
-#             Season_Id=i.Season_Id,
-#             SeasonName=i.seasons.Season_Name if hasattr(i, 'seasons') else None
-#         )
-
-#     in_progress_items = [map_inspection(i) for i in inspections if i.Status == 'In Progress']
-#     pending_items = [map_inspection(i) for i in inspections if i.Status == 'Pending']
-#     completed_items = [map_inspection(i) for i in inspections if i.Status == 'Completed']
-
-#     response = InspectionGraphResponse(
-#         TotalInspectionCount=len(inspections),
-#         InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
-#         Pending=InspectionGraphCategory(Count=len(pending_items), Inspections=pending_items),
-#         Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items)
-#     )
-
-#     return response
 
 @router.get("/inspection-graph", response_model=InspectionGraphResponse)
 def get_inspection_graph(
@@ -199,12 +149,14 @@ def get_inspection_graph(
     in_progress_items = [map_inspection(i) for i in inspections if i[0].Status == 'In Progress']
     pending_items = [map_inspection(i) for i in inspections if i[0].Status == 'Pending']
     completed_items = [map_inspection(i) for i in inspections if i[0].Status == 'Completed']
+    rejected_items = [map_inspection(i) for i in inspections if i[0].Status == 'Rejected']
 
     response = InspectionGraphResponse(
         TotalInspectionCount=len(inspections),
         InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
         Pending=InspectionGraphCategory(Count=len(pending_items), Inspections=pending_items),
-        Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items)
+        Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items),
+        Rejected=InspectionGraphCategory(Count=len(rejected_items), Inspections=rejected_items)
     )
 
     return response
