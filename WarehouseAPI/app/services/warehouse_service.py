@@ -10,6 +10,10 @@ def create_warehouse(db: Session, payload: WarehouseCreate) -> Warehouse:
         Warehouse_Name=payload.Warehouse_Name,
         Location=payload.Location,
         Code=payload.Code,
+        Capacity=payload.Capacity,
+        Latitude=payload.Latitude,
+        Longitude=payload.Longitude,
+        # Inventory is intentionally excluded as per requirements
     )
     db.add(entity)
     db.commit()
@@ -29,12 +33,21 @@ def update_warehouse(db: Session, warehouse_id: int, payload: WarehouseUpdate) -
     entity = get_warehouse(db, warehouse_id)
     if entity is None:
         return None
+    
+    # Update only the fields that are provided in the payload
     if payload.Warehouse_Name is not None:
         entity.Warehouse_Name = payload.Warehouse_Name
     if payload.Location is not None:
         entity.Location = payload.Location
     if payload.Code is not None:
         entity.Code = payload.Code
+    if payload.Capacity is not None:
+        entity.Capacity = payload.Capacity
+    if payload.Latitude is not None:
+        entity.Latitude = payload.Latitude
+    if payload.Longitude is not None:
+        entity.Longitude = payload.Longitude
+    
     db.commit()
     db.refresh(entity)
     return entity

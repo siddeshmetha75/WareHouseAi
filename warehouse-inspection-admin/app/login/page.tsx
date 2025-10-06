@@ -13,9 +13,16 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isLoading && user) {
       const role = (user.role || "").trim().toLowerCase()
-      if (role === "inspector") {
+      
+      // Handle redirection based on role
+      if (role === "admin") {
+        router.push("/dashboard")
+      } else if (role === "inspector") {
         router.push("/inspector/dashboard")
+      } else if (role === "manager") {
+        router.push("/manager/dashboard")
       } else {
+        // Default fallback
         router.push("/dashboard")
       }
     }

@@ -13,12 +13,21 @@ import { useAuth } from "@/contexts/auth-context"
 import { Shimmer, ShimmerSidebar } from "@/components/ui/shimmer"
 
 const navigation = [
+  // Admin Dashboard
   {
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["Admin", "Manager"],
+    roles: ["Admin"],
   },
+  // Manager Dashboard
+  {
+    name: "Dashboard",
+    href: "/manager/dashboard",
+    icon: LayoutDashboard,
+    roles: ["Manager"],
+  },
+  // Inspector Dashboard
   {
     name: "Inspections",
     href: "/inspector/dashboard",

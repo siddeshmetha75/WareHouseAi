@@ -15,6 +15,10 @@ export default function HomePage() {
         const role = (user.role || "").trim().toLowerCase()
         if (role === "inspector") {
           router.push("/inspector/dashboard")
+        } else if (role === "manager") {
+          router.push("/manager/dashboard")
+        } else if (role === "admin") {
+          router.push("/dashboard")
         } else {
           router.push("/dashboard")
         }
