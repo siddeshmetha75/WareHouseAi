@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional
 from ..database import SessionLocal
 from ..models import Inspections
 from app.models import Inspections, Seasons
 from ..models import Inspections, Warehouses, Users, Managers, InspectionAnswers
-from ..schemas.inspection import InspectionCreate, InspectionUpdate,InspectionDetailsResponse, InspectionResponse
+from ..schemas.inspection import InspectionCreate, InspectionUpdate,InspectionDetailsResponse, InspectionResponse, InspectionSummaryRequest, InspectionSummaryResponse, InspectionGraphResponse, InspectionGraphItem, InspectionGraphCategory
 import json
 from .. import models
 from ..models import Users
+from datetime import datetime
 from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/inspectionsDetails", tags=["Inspections"])
@@ -61,3 +62,148 @@ def update_inspection(inspection_id: int, payload: InspectionUpdate, db: Session
     db.commit()
     db.refresh(entity)
     return entity
+
+@router.post("/summary", response_model=InspectionSummaryResponse)
+def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(get_db)):
+
+    query = db.query(Inspections)
+
+    if request.FromDate:
+        query = query.filter(Inspections.Created_At >= datetime.combine(request.FromDate, datetime.min.time()))
+    if request.ToDate:
+        query = query.filter(Inspections.Created_At <= datetime.combine(request.ToDate, datetime.max.time()))
+
+    total_inspection_count = query.count()
+    in_progress = query.filter(Inspections.Status == 'In Progress').count()
+    pending = query.filter(Inspections.Status == 'Pending').count()
+    completed = query.filter(Inspections.Status == 'Completed').count()
+
+    created_at_count = query.filter(
+        Inspections.Created_At >= datetime.combine(request.FromDate or datetime.min.date(), datetime.min.time()),
+        Inspections.Created_At <= datetime.combine(request.ToDate or datetime.max.date(), datetime.max.time())
+    ).count()
+
+    return InspectionSummaryResponse(
+        total_inspection_count=total_inspection_count,
+        in_progress=in_progress,
+        pending=pending,
+        completed=completed,
+        created_at_count=created_at_count
+    )
+
+# @router.get("/inspection-graph", response_model=InspectionGraphResponse)
+# def get_inspection_graph(
+#     fromdate: Optional[datetime] = Query(None),
+#     todate: Optional[datetime] = Query(None),
+#     db: Session = Depends(get_db)
+# ):
+#     # Base query
+#     query = db.query(Inspections)
+
+#     if fromdate:
+#         query = query.filter(Inspections.Created_At >= fromdate)
+#     if todate:
+#         query = query.filter(Inspections.Created_At <= todate)
+
+#     inspections = query.all()
+
+#     def map_inspection(i: Inspections) -> InspectionGraphItem:
+#         return InspectionGraphItem(
+#             Id_Inspections=i.Id_Inspections,
+#             Warehouse_Id=i.Warehouse_Id,
+#             WarehouseName=i.warehouses.Warehouse_Name if i.warehouses else None,
+#             Inspector_Id=i.Inspector_Id,
+#             InspectorName=i.users.Full_Name if i.users else None,
+#             Manager_Id=i.Manager_Id,
+#             ManagerName=i.managers.users.Full_Name if i.managers else None,
+#             Created_At=i.Created_At,
+#             Data=i.Data,
+#             Status=i.Status,
+#             Remarks=i.Remarks,
+#             Commodity_Id=i.Commodity_Id,
+#             CommodityName=i.commoditymaster.Commodity_Name if i.commoditymaster else None,
+#             Risk_Score=i.Risk_Score,
+#             Completed_At=i.Completed_At,
+#             Manager_Approved=i.Manager_Approved,
+#             Manager_Approved_At=i.Manager_Approved_At,
+#             Manager_Remarks=i.Manager_Remarks,
+#             Season_Id=i.Season_Id,
+#             SeasonName=i.seasons.Season_Name if hasattr(i, 'seasons') else None
+#         )
+
+#     in_progress_items = [map_inspection(i) for i in inspections if i.Status == 'In Progress']
+#     pending_items = [map_inspection(i) for i in inspections if i.Status == 'Pending']
+#     completed_items = [map_inspection(i) for i in inspections if i.Status == 'Completed']
+
+#     response = InspectionGraphResponse(
+#         TotalInspectionCount=len(inspections),
+#         InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
+#         Pending=InspectionGraphCategory(Count=len(pending_items), Inspections=pending_items),
+#         Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items)
+#     )
+
+#     return response
+
+@router.get("/inspection-graph", response_model=InspectionGraphResponse)
+def get_inspection_graph(
+    fromdate: Optional[datetime] = Query(None),
+    todate: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    # Query with joinedload for related tables including Seasons
+    inspections = (
+        db.query(Inspections)
+        .options(
+            joinedload(Inspections.users),       # Inspector
+            joinedload(Inspections.managers).joinedload(Managers.users),  # Manager
+            joinedload(Inspections.warehouses),  # Warehouse
+            joinedload(Inspections.commoditymaster)  # Commodity
+        )
+        .join(Seasons, Inspections.Season_Id == Seasons.IdSeason)  # Join Seasons
+        .add_columns(Seasons.Season_Name)  # Include Season_Name in results
+    )
+
+    if fromdate:
+        inspections = inspections.filter(Inspections.Created_At >= fromdate)
+    if todate:
+        inspections = inspections.filter(Inspections.Created_At <= todate)
+
+    inspections = inspections.all()
+
+    def map_inspection(i):
+        inspection, season_name = i  # unpack tuple (inspection object, season_name)
+        return InspectionGraphItem(
+            Id_Inspections=inspection.Id_Inspections,
+            Warehouse_Id=inspection.Warehouse_Id,
+            WarehouseName=inspection.warehouses.Warehouse_Name if inspection.warehouses else None,
+            Inspector_Id=inspection.Inspector_Id,
+            InspectorName=inspection.users.Full_Name if inspection.users else None,
+            Manager_Id=inspection.Manager_Id,
+            ManagerName=inspection.managers.users.Full_Name if inspection.managers else None,
+            Created_At=inspection.Created_At,
+            Data=inspection.Data,
+            Status=inspection.Status,
+            Remarks=inspection.Remarks,
+            Commodity_Id=inspection.Commodity_Id,
+            CommodityName=inspection.commoditymaster.Commodity_Name if inspection.commoditymaster else None,
+            Risk_Score=inspection.Risk_Score,
+            Completed_At=inspection.Completed_At,
+            Manager_Approved=inspection.Manager_Approved,
+            Manager_Approved_At=inspection.Manager_Approved_At,
+            Manager_Remarks=inspection.Manager_Remarks,
+            Season_Id=inspection.Season_Id,
+            SeasonName=season_name
+        )
+
+    in_progress_items = [map_inspection(i) for i in inspections if i[0].Status == 'In Progress']
+    pending_items = [map_inspection(i) for i in inspections if i[0].Status == 'Pending']
+    completed_items = [map_inspection(i) for i in inspections if i[0].Status == 'Completed']
+
+    response = InspectionGraphResponse(
+        TotalInspectionCount=len(inspections),
+        InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
+        Pending=InspectionGraphCategory(Count=len(pending_items), Inspections=pending_items),
+        Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items)
+    )
+
+    return response
