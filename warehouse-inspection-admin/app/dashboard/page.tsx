@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { StatsCards } from "@/components/dashboard/stats-cards"
-import { InspectionChart } from "@/components/dashboard/inspection-chart"
 import { fetchDashboardStats } from "@/lib/api"
 import type { DashboardStats } from "@/lib/types"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
+import { InspectionPieChart } from "@/components/dashboard/inspection-pie-chart"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -28,15 +28,8 @@ export default function DashboardPage() {
       <StatsCards stats={stats || {} as DashboardStats} isLoading={loading} />
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* <ModernCard isLoading={loading}>
-          <ModernCardHeader>
-            <ModernCardTitle>Inspection Trends</ModernCardTitle>
-          </ModernCardHeader>
-          <ModernCardContent>
-            <InspectionChart />
-          </ModernCardContent>
-        </ModernCard> */}
-
+        <InspectionPieChart stats={stats} isLoading={loading} />
+        
         <ModernCard isLoading={loading}>
           <ModernCardHeader>
             <ModernCardTitle>Recent Activity</ModernCardTitle>
@@ -45,7 +38,15 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">3 inspections completed today</span>
+                <span className="text-sm text-gray-600">
+                  {stats?.completedInspections || 0} inspections completed
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">
+                  {stats?.pendingInspections || 0} pending inspections
+                </span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
