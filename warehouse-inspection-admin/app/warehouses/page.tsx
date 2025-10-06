@@ -29,6 +29,7 @@ export default function WarehousesPage() {
   const [rows, setRows] = useState<ApiWarehouse[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState<string>("")
   const [form, setForm] = useState<FormState>({ 
     Warehouse_Name: "", 
     Location: "", 
@@ -138,6 +139,16 @@ export default function WarehousesPage() {
     }
   }
 
+  const filteredWarehouses = useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const query = searchQuery.toLowerCase();
+    return rows.filter(warehouse => 
+      (warehouse.Warehouse_Name?.toLowerCase() || '').includes(query) ||
+      (warehouse.Code?.toLowerCase() || '').includes(query) ||
+      (warehouse.Location?.toLowerCase() || '').includes(query)
+    );
+  }, [rows, searchQuery]);
+
   const title = useMemo(() => (mode === "create" ? "Add Warehouse" : mode === "edit" ? "Edit Warehouse" : "Warehouses"), [mode])
 
   return (
@@ -145,9 +156,25 @@ export default function WarehousesPage() {
       <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-            <p className="text-muted-foreground">Manage warehouses (Warehouse_Name, Location, Code, Capacity, Latitude, Longitude, Inventory)</p>
+          <div className="flex items-center gap-4">
+            {mode !== "list" && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => { resetForm(); setMode("list"); }}
+                className="h-8 w-8 p-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="m12 19-7-7 7-7"/>
+                  <path d="M19 12H5"/>
+                </svg>
+                <span className="sr-only">Back</span>
+              </Button>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+              <p className="text-muted-foreground">Manage warehouses (Warehouse_Name, Location, Code, Capacity, Latitude, Longitude, Inventory)</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {mode === "list" && (
@@ -255,10 +282,40 @@ export default function WarehousesPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-md border overflow-x-auto bg-white">
-            {loading ? (
-              <div className="p-6 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
-            ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-md">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <Input
+                  type="search"
+                  placeholder="Search warehouses..."
+                  className="pl-8 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {filteredWarehouses.length} {filteredWarehouses.length === 1 ? 'warehouse' : 'warehouses'} found
+              </div>
+            </div>
+            <div className="rounded-md border overflow-x-auto bg-white">
+              {loading ? (
+                <div className="p-6 flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                </div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -273,7 +330,7 @@ export default function WarehousesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((w) => (
+                  {filteredWarehouses.map((w) => (
                     <TableRow key={w.Id_Warehouse}>
                       <TableCell>{w.Warehouse_Name}</TableCell>
                       <TableCell>{w.Location || "-"}</TableCell>
@@ -299,14 +356,17 @@ export default function WarehousesPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {rows.length === 0 && (
+                  {filteredWarehouses.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-6">No warehouses found.</TableCell>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
+                        {searchQuery ? 'No warehouses match your search.' : 'No warehouses found.'}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

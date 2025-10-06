@@ -32,13 +32,13 @@ export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
       description: "Successfully completed",
       bgColor: "bg-green-500",
     },
-    {
-      title: "In Progress",
-      value: stats.inProgressInspections,
-      icon: XCircle,
-      description: "In Progress inspections",
-      bgColor: "bg-red-500",
-    },
+    // {
+    //   title: "In Progress",
+    //   value: stats.inProgressInspections,
+    //   icon: XCircle,
+    //   description: "In Progress inspections",
+    //   bgColor: "bg-red-500",
+    // },
     {
       title: "Warehouses",
       value: stats.totalWarehouses,
