@@ -1,6 +1,6 @@
 "use client"
 
-import { ClipboardCheck, Clock, CheckCircle, XCircle, Warehouse, Users, TrendingUp } from "lucide-react"
+import { ClipboardCheck, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 import type { DashboardStats } from "@/lib/types"
 import { ShimmerStatsCard } from "@/components/ui/shimmer"
 
@@ -19,6 +19,20 @@ export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
       bgColor: "bg-blue-500",
     },
     {
+      title: "Managers",
+      value: stats.activeManagers || 0,
+      icon: ClipboardCheck,
+      description: "Active managers",
+      bgColor: "bg-indigo-500",
+    },
+    {
+      title: "Warehouses",
+      value: stats.totalWarehouses || 0,
+      icon: ClipboardCheck,
+      description: "Total warehouses",
+      bgColor: "bg-purple-500",
+    },
+    {
       title: "Pending",
       value: stats.pendingInspections,
       icon: Clock,
@@ -26,41 +40,19 @@ export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
       bgColor: "bg-yellow-500",
     },
     {
-      title: "Completed",
-      value: stats.completedInspections,
+      title: "Accepted",
+      value: stats.completedInspections || 0,
       icon: CheckCircle,
-      description: "Successfully completed",
+      description: "Successfully accepted",
       bgColor: "bg-green-500",
     },
-    // {
-    //   title: "In Progress",
-    //   value: stats.inProgressInspections,
-    //   icon: XCircle,
-    //   description: "In Progress inspections",
-    //   bgColor: "bg-red-500",
-    // },
     {
-      title: "Warehouses",
-      value: stats.totalWarehouses,
-      icon: Warehouse,
-      description: "Active locations",
-      bgColor: "bg-purple-500",
-    },
-    {
-      title: "Inspectors",
-      value: stats.activeInspectors,
-      icon: Users,
-      description: "Active inspectors",
-      bgColor: "bg-indigo-500",
-    },
-    {
-      title: "Managers",
-      value: stats.activeManagers,
-      icon: Users,
-      description: "Active Managers",
-      bgColor: "bg-pink-500",
-    },
-   
+      title: "Rejected",
+      value: stats.inProgressInspections || 0,
+      icon: XCircle,
+      description: "Inspections rejected",
+      bgColor: "bg-red-500",
+    }
   ]
 
   if (isLoading) {
