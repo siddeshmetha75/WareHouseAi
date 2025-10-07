@@ -37,6 +37,8 @@ export function Header() {
         return "Users"
       case "/admin/user-warehouse":
         return "User-Warehouse Map"
+      case "/admin/warehouse-commodity":
+        return "Warehouse-Commodity Map"
       default:
         return "Dashboard"
     }

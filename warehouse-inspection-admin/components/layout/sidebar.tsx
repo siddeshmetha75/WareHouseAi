@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { LayoutDashboard, Users, Warehouse, ClipboardCheck, BarChart3, Settings, Menu, Package, CheckCircle2, Clock, FileText, TrendingUp, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, Warehouse, ClipboardCheck, BarChart3, Settings, Menu, Package, CheckCircle2, Clock, FileText, TrendingUp, LogOut, Layers } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Shimmer, ShimmerSidebar } from "@/components/ui/shimmer"
 
@@ -86,6 +86,12 @@ const navigation = [
     name: "User-Warehouse Map",
     href: "/admin/user-warehouse",
     icon: Warehouse,
+    roles: ["Admin"],
+  },
+  {
+    name: "Warehouse-Commodity",
+    href: "/admin/warehouse-commodity",
+    icon: Layers,
     roles: ["Admin"],
   },
   // {
