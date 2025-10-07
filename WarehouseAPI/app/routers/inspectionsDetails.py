@@ -74,23 +74,23 @@ def inspection_summary(request: InspectionSummaryRequest, db: Session = Depends(
         query = query.filter(Inspections.Created_At <= datetime.combine(request.ToDate, datetime.max.time()))
 
     total_inspection_count = query.count()
-    in_progress = query.filter(Inspections.Status == 'In Progress').count()
+    #in_progress = query.filter(Inspections.Status == 'In Progress').count()
     pending = query.filter(Inspections.Status == 'Pending').count()
-    completed = query.filter(Inspections.Status == 'Completed').count()
+    Accepted = query.filter(Inspections.Status == 'Accepted').count()
     rejected = query.filter(Inspections.Status == 'Rejected').count()
 
-    created_at_count = query.filter(
-        Inspections.Created_At >= datetime.combine(request.FromDate or datetime.min.date(), datetime.min.time()),
-        Inspections.Created_At <= datetime.combine(request.ToDate or datetime.max.date(), datetime.max.time())
-    ).count()
+    # created_at_count = query.filter(
+    #     Inspections.Created_At >= datetime.combine(request.FromDate or datetime.min.date(), datetime.min.time()),
+    #     Inspections.Created_At <= datetime.combine(request.ToDate or datetime.max.date(), datetime.max.time())
+    # ).count()
 
     return InspectionSummaryResponse(
         total_inspection_count=total_inspection_count,
-        in_progress=in_progress,
+        #in_progress=in_progress,
         pending=pending,
-        completed=completed,
+        Accepted=Accepted,
         rejected=rejected,
-        created_at_count=created_at_count
+        #created_at_count=created_at_count
     )
 
 
@@ -146,16 +146,16 @@ def get_inspection_graph(
             SeasonName=season_name
         )
 
-    in_progress_items = [map_inspection(i) for i in inspections if i[0].Status == 'In Progress']
+    #in_progress_items = [map_inspection(i) for i in inspections if i[0].Status == 'In Progress']
     pending_items = [map_inspection(i) for i in inspections if i[0].Status == 'Pending']
-    completed_items = [map_inspection(i) for i in inspections if i[0].Status == 'Completed']
+    accepted_items = [map_inspection(i) for i in inspections if i[0].Status == 'Accepted']
     rejected_items = [map_inspection(i) for i in inspections if i[0].Status == 'Rejected']
 
     response = InspectionGraphResponse(
         TotalInspectionCount=len(inspections),
-        InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
+        #InProgress=InspectionGraphCategory(Count=len(in_progress_items), Inspections=in_progress_items),
         Pending=InspectionGraphCategory(Count=len(pending_items), Inspections=pending_items),
-        Completed=InspectionGraphCategory(Count=len(completed_items), Inspections=completed_items),
+        Accepted=InspectionGraphCategory(Count=len(accepted_items), Inspections=accepted_items),
         Rejected=InspectionGraphCategory(Count=len(rejected_items), Inspections=rejected_items)
     )
 

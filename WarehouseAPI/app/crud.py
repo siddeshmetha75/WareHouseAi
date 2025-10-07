@@ -66,8 +66,8 @@ def get_inspection_counts(db: Session) -> Dict[str, int]:
         SELECT
             COUNT(*) AS total,
             SUM(CASE WHEN `Status` = 'Pending' THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN `Status` = 'Completed' THEN 1 ELSE 0 END) AS completed,
-            SUM(CASE WHEN `Status` = 'In Progress' THEN 1 ELSE 0 END) AS inprogress
+            SUM(CASE WHEN `Status` = 'Accepted' THEN 1 ELSE 0 END) AS Accepted,
+            SUM(CASE WHEN `Status` = 'Rejected' THEN 1 ELSE 0 END) AS Rejected
         FROM inspections
     """)
     row = db.execute(sql).mappings().first()
@@ -75,8 +75,8 @@ def get_inspection_counts(db: Session) -> Dict[str, int]:
     return {
         "total": int(row["total"] or 0),
         "pending": int(row["pending"] or 0),
-        "completed": int(row["completed"] or 0),
-        "inprogress": int(row["inprogress"] or 0),
+        "Accepted": int(row["Accepted"] or 0),
+        "Rejected": int(row["Rejected"] or 0),
     }
 
 def get_warehouses_count(db: Session) -> int:

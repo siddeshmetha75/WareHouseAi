@@ -214,8 +214,8 @@ def inspections_counts(db: Session = Depends(get_db)):
     return {
         "TotalInspections": counts["total"],
         "Pending": counts["pending"],
-        "Completed": counts["completed"],
-        "InProgress": counts["inprogress"],
+        "Accepted": counts["Accepted"],
+        "Rejected": counts["Rejected"],
     }
 
 @app.get("/warehouses/count", response_model=schemas.CountResponse, tags=["Warehouses"])

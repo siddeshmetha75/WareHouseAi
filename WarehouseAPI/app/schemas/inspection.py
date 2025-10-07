@@ -129,11 +129,11 @@ class InspectionSummaryRequest(BaseModel):
 
 class InspectionSummaryResponse(BaseModel):
     total_inspection_count: int
-    in_progress: int
+    #in_progress: int
     pending: int
     rejected: int
-    completed: int
-    created_at_count: int
+    Accepted: int
+    #created_at_count: int
 
 class InspectionGraphItem(BaseModel):
     Id_Inspections: Optional[int]
@@ -163,7 +163,7 @@ class InspectionGraphCategory(BaseModel):
 
 class InspectionGraphResponse(BaseModel):
     TotalInspectionCount: Optional[int]
-    InProgress: InspectionGraphCategory
+    #InProgress: InspectionGraphCategory
     Pending: InspectionGraphCategory
-    Completed: InspectionGraphCategory
+    Accepted: InspectionGraphCategory
     Rejected: InspectionGraphCategory

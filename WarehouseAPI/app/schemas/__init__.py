@@ -71,8 +71,8 @@ class LoginResponse(BaseModel):
 class InspectionCounts(BaseModel):
     TotalInspections: int
     Pending: int
-    Completed: int
-    InProgress: int
+    Accepted: int
+    Rejected: int
 
 class CountResponse(BaseModel):
     count: int
