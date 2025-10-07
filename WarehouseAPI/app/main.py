@@ -157,7 +157,6 @@ def login(
     request: schemas.LoginRequest,
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
-    , current_user: Users = Depends(require_auth_token)
 ):
     # Step 1: Authenticate email + password (hashed check)
     user = crud.authenticate_user(db, request.EmailId, request.Password)
