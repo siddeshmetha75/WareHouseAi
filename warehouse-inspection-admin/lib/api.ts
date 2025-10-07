@@ -1,24 +1,9 @@
-import type { DashboardStats } from "@/lib/types"
-import type { Warehouse } from "@/lib/types"
-import type { Commodity } from "@/lib/types"
-import axios from "axios"
+import type { DashboardStats, Warehouse, Commodity } from "@/lib/types"
+import api from "./api-client"
 
-const api = axios.create({ baseURL: "http://127.0.0.1:8000" })
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token") || localStorage.getItem("warehouse_auth_token")
-  // Only attach JWT if caller did not explicitly set Authorization
-  if (token) {
-    config.headers = config.headers ?? {}
-    if (!config.headers["Authorization"]) {
-      config.headers["Authorization"] = `Bearer ${token}`
-    }
-  }
-  return config
-})
+export type { Warehouse, Commodity } from "@/lib/types"
 
 export async function login(email: string, password: string, customToken: string = "MyCustomToken") {
-  // Provide the custom token required by backend for login
   const { data } = await api.post(
     "/auth/login",
     { EmailId: email, Password: password },
@@ -26,37 +11,60 @@ export async function login(email: string, password: string, customToken: string
   )
   if (data?.token) {
     localStorage.setItem("token", data.token)
-    // keep backward compat with any code reading warehouse_auth_token
-    localStorage.setItem("warehouse_auth_token", data.token)
   }
   return data
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const [inspectionsRes, warehousesRes, inspectorsRes, managersRes, averageRes] = await Promise.all([
-    api.get("/inspections/counts"),
-    api.get("/warehouses/count"),
-    api.get("/inspectors/count"),
-    api.get("/managers/count"),
-    api.get("/inspections/average"),
-  ])
+  try {
+    const [inspectionsRes, warehousesRes, inspectorsRes, managersRes, averageRes] = await Promise.all([
+      api.get("/inspections/counts").catch(() => ({ data: { TotalInspections: 0, Pending: 0, Accepted: 0, Rejected: 0 } })),
+      api.get("/warehouses/count").catch(() => ({ data: { count: 0 } })),
+      api.get("/inspectors/count").catch(() => ({ data: { count: 0 } })),
+      api.get("/managers/count").catch(() => ({ data: { count: 0 } })),
+      api.get("/inspections/average").catch(() => ({ data: { average: 0 } })),
+    ])
 
-  return {
-    totalInspections: inspectionsRes.data.TotalInspections,
-    pendingInspections: inspectionsRes.data.Pending,
-    completedInspections: inspectionsRes.data.Completed,
-    inProgressInspections: inspectionsRes.data.InProgress,
-    totalWarehouses: warehousesRes.data.count,
-    activeInspectors: inspectorsRes.data.count,
-    activeManagers: managersRes.data.count,
-    averageScore: averageRes.data.average,
-    recentInspections: [],
+    const totalInspections = inspectionsRes.data?.TotalInspections ?? 0
+    const pendingInspections = inspectionsRes.data?.Pending ?? 0
+    const completedInspections = inspectionsRes.data?.Accepted ?? 0
+    const inProgressInspections = inspectionsRes.data?.Rejected ?? 0
+    const totalWarehouses = warehousesRes.data?.count ?? 0
+    const activeInspectors = inspectorsRes.data?.count ?? 0
+    const activeManagers = managersRes.data?.count ?? 0
+    const averageScore = averageRes.data?.average ?? 0
+
+    return {
+      totalInspections,
+      pendingInspections,
+      completedInspections,
+      inProgressInspections,
+      totalWarehouses,
+      activeInspectors,
+      activeManagers,
+      averageScore,
+      recentInspections: [],
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error)
+    // Return default values in case of error
+    return {
+      totalInspections: 0,
+      pendingInspections: 0,
+      completedInspections: 0,
+      inProgressInspections: 0,
+      totalWarehouses: 0,
+      activeInspectors: 0,
+      activeManagers: 0,
+      averageScore: 0,
+      recentInspections: [],
+    }
   }
 }
 
 export async function fetchInspectorWarehouses(inspectorId: number): Promise<Warehouse[]> {
-  const { data } = await api.get(`/api/warehouses`, { params: { inspector_id: inspectorId } })
-  return data
+  const { data } = await api.get(`/api/warehouses`, { params: { inspector_id: inspectorId } });
+  return data;
 }
 
 export async function fetchCommodities(): Promise<Commodity[]> {

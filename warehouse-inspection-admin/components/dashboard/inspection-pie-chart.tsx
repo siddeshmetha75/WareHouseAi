@@ -3,25 +3,27 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { Skeleton } from "@/components/ui/skeleton"
+import { DashboardStats } from "@/lib/types"
 
 type InspectionPieChartProps = {
-  stats: {
-    totalInspections: number
-    pendingInspections: number
-    completedInspections: number
-    inProgressInspections: number
-  } | null
+  stats: DashboardStats | null
   isLoading: boolean
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+// Colors for the pie chart segments
+// Blue: Pending, Green: Accepted, Red: Rejected
+const COLORS = {
+  'Pending': '#3b82f6',
+  'Accepted': '#10b981',
+  'Rejected': '#ef4444'
+}
 
 export function InspectionPieChart({ stats, isLoading }: InspectionPieChartProps) {
+  // Map the stats to the pie chart data format from API
   const data = [
-    { name: 'Total', value: stats?.totalInspections || 0 },
     { name: 'Pending', value: stats?.pendingInspections || 0 },
-    { name: 'Completed', value: stats?.completedInspections || 0 },
-    { name: 'In Progress', value: stats?.inProgressInspections || 0 },
+    { name: 'Accepted', value: stats?.completedInspections || 0 },
+    { name: 'Rejected', value: stats?.inProgressInspections || 0 }
   ].filter(item => item.value > 0) // Only show slices with values > 0
 
   if (isLoading) {
@@ -57,8 +59,8 @@ export function InspectionPieChart({ stats, isLoading }: InspectionPieChartProps
                 `${name}: ${(percent * 100).toFixed(0)}%`
               }
             >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              {data.map((entry) => (
+                <Cell key={`cell-${entry.name}`} fill={COLORS[entry.name as keyof typeof COLORS] || '#999999'} />
               ))}
             </Pie>
             <Tooltip 
