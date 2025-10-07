@@ -3,28 +3,29 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from ..database import SessionLocal
-from ..models import CropYear as CropYearModel
+from ..models import CropYear as CropYearModel, Users
 from ..schemas.crop_year import CropYearCreate, CropYearUpdate, CropYearResponse
+from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/crop_year", tags=["CropYear"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 
 @router.get("/", response_model=List[CropYearResponse])
-def list_crop_years(db: Session = Depends(get_db)):
+def list_crop_years(db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     items = db.query(CropYearModel).filter(CropYearModel.Is_Active == 1).all()
     return items
 
 
 @router.get("/{crop_year_id}", response_model=CropYearResponse)
-def get_crop_year(crop_year_id: int, db: Session = Depends(get_db)):
+def get_crop_year(crop_year_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     item = db.query(CropYearModel).filter(
         CropYearModel.IdCrop_year == crop_year_id,
         CropYearModel.Is_Active == 1
@@ -35,7 +36,7 @@ def get_crop_year(crop_year_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=CropYearResponse, status_code=status.HTTP_201_CREATED)
-def create_crop_year(payload: CropYearCreate, db: Session = Depends(get_db)):
+def create_crop_year(payload: CropYearCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = CropYearModel(**payload.dict())
     db.add(entity)
     db.commit()
@@ -44,7 +45,7 @@ def create_crop_year(payload: CropYearCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{crop_year_id}", response_model=CropYearResponse)
-def update_crop_year(crop_year_id: int, payload: CropYearUpdate, db: Session = Depends(get_db)):
+def update_crop_year(crop_year_id: int, payload: CropYearUpdate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(CropYearModel).filter(CropYearModel.IdCrop_year == crop_year_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="CropYear not found")
@@ -59,7 +60,7 @@ def update_crop_year(crop_year_id: int, payload: CropYearUpdate, db: Session = D
 
 
 @router.delete("/{crop_year_id}", status_code=status.HTTP_204_NO_CONTENT)
-def soft_delete_crop_year(crop_year_id: int, db: Session = Depends(get_db)):
+def soft_delete_crop_year(crop_year_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(CropYearModel).filter(CropYearModel.IdCrop_year == crop_year_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="CropYear not found")

@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app import models
+from app.models import Users
 from app.schemas.commodity_warehouse_map import (
     CommodityWarehouseMap,
     CommodityWarehouseMapCreate,
     CommodityWarehouseMapUpdate,
     CommodityWarehouseMapResponse
 )
-from app.dependencies import get_db
+from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/commodity-warehouse-map", tags=["CommodityWarehouseMap"])
 
@@ -48,14 +49,14 @@ def _upsert_user_warehouse_map(db: Session, *, inspector_id: int, manager_id: in
 
 
 @router.get("/", response_model=List[CommodityWarehouseMap])
-def get_all_mappings(db: Session = Depends(get_db)):
+def get_all_mappings(db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     return db.query(models.CommodityWarehouseMap).filter(models.CommodityWarehouseMap.Is_Active == 1).all()
 
 
 
 # Get mapping by id
 @router.get("/{mapping_id}", response_model=CommodityWarehouseMap)
-def get_mapping(mapping_id: int, db: Session = Depends(get_db)):
+def get_mapping(mapping_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     mapping = db.query(models.CommodityWarehouseMap).filter(
         models.CommodityWarehouseMap.Id_CommodityWarehouseMap == mapping_id,
         models.CommodityWarehouseMap.Is_Active == 1
@@ -67,7 +68,7 @@ def get_mapping(mapping_id: int, db: Session = Depends(get_db)):
 
 # Create mapping
 @router.post("/", response_model=CommodityWarehouseMap)
-def create_mapping(mapping: CommodityWarehouseMapCreate, db: Session = Depends(get_db)):
+def create_mapping(mapping: CommodityWarehouseMapCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     # Duplicate check for active mapping with same tuple
     exists = (
         db.query(models.CommodityWarehouseMap)
@@ -106,7 +107,7 @@ def create_mapping(mapping: CommodityWarehouseMapCreate, db: Session = Depends(g
 
 # Update mapping
 @router.put("/{mapping_id}", response_model=CommodityWarehouseMap)
-def update_mapping(mapping_id: int, mapping: CommodityWarehouseMapUpdate, db: Session = Depends(get_db)):
+def update_mapping(mapping_id: int, mapping: CommodityWarehouseMapUpdate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     db_mapping = db.query(models.CommodityWarehouseMap).filter(
         models.CommodityWarehouseMap.Id_CommodityWarehouseMap == mapping_id
     ).first()
@@ -162,7 +163,7 @@ def update_mapping(mapping_id: int, mapping: CommodityWarehouseMapUpdate, db: Se
 
 # Soft Delete mapping
 @router.delete("/{mapping_id}")
-def delete_mapping(mapping_id: int, db: Session = Depends(get_db)):
+def delete_mapping(mapping_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     db_mapping = db.query(models.CommodityWarehouseMap).filter(
         models.CommodityWarehouseMap.Id_CommodityWarehouseMap == mapping_id
     ).first()
@@ -209,7 +210,7 @@ def delete_mapping(mapping_id: int, db: Session = Depends(get_db)):
 def get_mappings_by_warehouse_and_inspector(
     warehouseId: int = Query(..., description="Warehouse Id"),
     inspectorId: int = Query(..., description="Inspector Id"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     mappings = (
         db.query(

@@ -24,6 +24,7 @@ class Commoditymaster(Base):
     commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='commoditymaster')
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='commoditymaster')
     crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='commoditymaster')
+    warehouse_commodity: Mapped[list['WarehouseCommodity']] = relationship('WarehouseCommodity', back_populates='commoditymaster')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='commoditymaster')
 
 
@@ -56,6 +57,7 @@ class Seasons(Base):
     commodity_season: Mapped[list['CommoditySeason']] = relationship('CommoditySeason', back_populates='seasons')
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='seasons')
     crop_year: Mapped[list['CropYear']] = relationship('CropYear', back_populates='seasons')
+    warehouse_commodity: Mapped[list['WarehouseCommodity']] = relationship('WarehouseCommodity', back_populates='seasons')
 
 
 class Users(Base):
@@ -93,6 +95,7 @@ class Warehouses(Base):
 
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', back_populates='warehouses')
     user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Warehouse')
+    warehouse_commodity: Mapped[list['WarehouseCommodity']] = relationship('WarehouseCommodity', back_populates='warehouses')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='warehouses')
 
 
@@ -230,6 +233,29 @@ class UserWarehouseMap(Base):
     Manager: Mapped['Users'] = relationship('Users', foreign_keys=[Manager_id], back_populates='user_warehouse_map')
     User: Mapped['Users'] = relationship('Users', foreign_keys=[User_id], back_populates='user_warehouse_map_')
     Warehouse: Mapped['Warehouses'] = relationship('Warehouses', back_populates='user_warehouse_map')
+
+
+class WarehouseCommodity(Base):
+    __tablename__ = 'warehouse_commodity'
+    __table_args__ = (
+        ForeignKeyConstraint(['CommodityMasterId'], ['commoditymaster.IdCommodity'], name='fk_commodityIdd'),
+        ForeignKeyConstraint(['SeasonId'], ['seasons.IdSeason'], name='fk_SeasonIdd'),
+        ForeignKeyConstraint(['WarehouseId'], ['warehouses.Id_Warehouse'], name='fk_WarehouseIdd'),
+        Index('fk_SeasonId_idx', 'SeasonId'),
+        Index('fk_WarehouseId_idx', 'WarehouseId'),
+        Index('fk_commodityId_idx', 'CommodityMasterId')
+    )
+
+    Idwarehouse_commodity: Mapped[int] = mapped_column(Integer, primary_key=True)
+    CommodityMasterId: Mapped[int] = mapped_column(Integer, nullable=False)
+    SeasonId: Mapped[int] = mapped_column(Integer, nullable=False)
+    WarehouseId: Mapped[int] = mapped_column(Integer, nullable=False)
+    Insert_Date: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+    Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
+
+    commoditymaster: Mapped['Commoditymaster'] = relationship('Commoditymaster', back_populates='warehouse_commodity')
+    seasons: Mapped['Seasons'] = relationship('Seasons', back_populates='warehouse_commodity')
+    warehouses: Mapped['Warehouses'] = relationship('Warehouses', back_populates='warehouse_commodity')
 
 
 class Inspections(Base):

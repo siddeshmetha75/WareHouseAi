@@ -3,23 +3,24 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import SessionLocal
-from ..models import Commoditymaster as Commodity
+from ..models import Commoditymaster as Commodity, Users
 from ..schemas.commodity import CommodityCreate, CommodityUpdate, CommodityResponse
+from ..dependencies import require_auth_token, get_db
 
 
 router = APIRouter(prefix="/commodities", tags=["Commodities"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 
 @router.post("", response_model=CommodityResponse, status_code=status.HTTP_201_CREATED)
-def create(payload: CommodityCreate, db: Session = Depends(get_db)):
+def create(payload: CommodityCreate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = Commodity(**payload.model_dump())
     db.add(entity)
     db.commit()
@@ -32,7 +33,7 @@ def list_all(
     category: Optional[str] = Query(None),
     storage: Optional[str] = Query(None),
     active: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)
 ):
     q = db.query(Commodity)
     if name:
@@ -47,7 +48,7 @@ def list_all(
 
 
 @router.get("/{commodity_id}", response_model=CommodityResponse)
-def get_by_id(commodity_id: int, db: Session = Depends(get_db)):
+def get_by_id(commodity_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(Commodity).filter(Commodity.IdCommodity == commodity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Commodity not found")
@@ -55,7 +56,7 @@ def get_by_id(commodity_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{commodity_id}", response_model=CommodityResponse)
-def update(commodity_id: int, payload: CommodityUpdate, db: Session = Depends(get_db)):
+def update(commodity_id: int, payload: CommodityUpdate, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(Commodity).filter(Commodity.IdCommodity == commodity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Commodity not found")
@@ -67,7 +68,7 @@ def update(commodity_id: int, payload: CommodityUpdate, db: Session = Depends(ge
 
 
 @router.delete("/{commodity_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(commodity_id: int, db: Session = Depends(get_db)):
+def delete(commodity_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     entity = db.query(Commodity).filter(Commodity.IdCommodity == commodity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Commodity not found")

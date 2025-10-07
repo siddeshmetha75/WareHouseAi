@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 
 from app.models import Users, Warehouses, UserWarehouseMap
 from app.schemas.hierarchy import HierarchyResponse, ManagerSchema, UserSchema, WarehouseSchema
-from app.database import get_db
+
+from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/hierarchy", tags=["Hierarchy"])
 
 
 @router.get("/", response_model=HierarchyResponse)
-def get_user_hierarchy(email: str, db: Session = Depends(get_db)):
+def get_user_hierarchy(email: str, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     user = db.query(Users).filter(Users.EmailId == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -58,7 +59,7 @@ def get_user_hierarchy(email: str, db: Session = Depends(get_db)):
         return HierarchyResponse(role="Inspector", managers=[])
 
 @router.get("/manager-warehouses", response_model=list[WarehouseSchema])
-def get_manager_warehouses(user_id: int, db: Session = Depends(get_db)):
+def get_manager_warehouses(user_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     # find all warehouse mappings for this manager
     mappings = db.query(UserWarehouseMap).filter(UserWarehouseMap.Manager_id == user_id).all()
     if not mappings:
@@ -83,7 +84,7 @@ def get_manager_warehouses(user_id: int, db: Session = Depends(get_db)):
     ]
 
 @router.get("/user-warehouses", response_model=list[WarehouseSchema])
-def get_user_warehouses(user_id: int, db: Session = Depends(get_db)):
+def get_user_warehouses(user_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
     """
     Fetch warehouses assigned to a user (could be inspector or any user)
     """
