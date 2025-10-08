@@ -8,6 +8,7 @@ class WarehouseCommodityBase(BaseModel):
     CommodityMasterId: int
     SeasonId: int
     WarehouseId: int
+    Manager_Id: int  # <-- Added this
 
 
 # ✅ Schema for Create
@@ -20,6 +21,7 @@ class WarehouseCommodityUpdate(BaseModel):
     CommodityMasterId: Optional[int] = None
     SeasonId: Optional[int] = None
     WarehouseId: Optional[int] = None
+    Manager_Id: Optional[int] = None  # <-- Added this
     Is_Active: Optional[int] = 1
 
 
@@ -31,7 +33,6 @@ class WarehouseCommodityResponse(WarehouseCommodityBase):
     WarehouseName: Optional[str] = None
     CommodityName: Optional[str] = None
     SeasonName: Optional[str] = None
+    ManagerName: Optional[str] = None
 
-    # class Config:
-    #     orm_mode = True
     model_config = ConfigDict(from_attributes=True)

@@ -25,16 +25,16 @@ router = APIRouter(prefix="/user-warehouse", tags=["UserWarehouse"])
 
 
 def _to_response(db: Session, record: UWModel) -> UserWarehouseMapResponse:
-    user = db.query(UserModel).filter(UserModel.idusers == record.User_id).first()
+    #user = db.query(UserModel).filter(UserModel.idusers == record.User_id).first()
     mgr = db.query(UserModel).filter(UserModel.idusers == record.Manager_id).first()
     wh = db.query(WarehouseModel).filter(WarehouseModel.Id_Warehouse == record.Warehouse_id).first()
     return UserWarehouseMapResponse(
         Id_User_Warehouse_Map=record.Id_User_Warehouse_Map,
-        User_id=record.User_id,
+        #User_id=record.User_id,
         Warehouse_id=record.Warehouse_id,
         Manager_id=record.Manager_id,
-        UserName=user.UserName if user else None,
-        UserFullName=user.Full_Name if user else None,
+        #UserName=user.UserName if user else None,
+        #UserFullName=user.Full_Name if user else None,
         ManagerName=mgr.UserName if mgr else None,
         ManagerFullName=mgr.Full_Name if mgr else None,
         WarehouseName=wh.Warehouse_Name if wh else None,
