@@ -1,7 +1,7 @@
 "use client"
 import { Dialog as ZoomDialog, DialogContent as ZoomDialogContent } from "@/components/ui/dialog"
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useMemo, useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { listInspections } from "@/lib/api"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
@@ -13,16 +13,31 @@ import { Input } from "@/components/ui/input"
 
 export default function ManagerInspectionsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
 
+  // Get inspector filter from URL params
+  const inspectorFilter = searchParams.get('inspector')
+
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["manager-inspections"],
-    queryFn: () => listInspections({ pending_only: true }),
+    queryKey: ["manager-inspections", inspectorFilter],
+    queryFn: () => listInspections({
+      pending_only: true,
+      ...(inspectorFilter && { inspector_id: parseInt(inspectorFilter) })
+    }),
   })
 
   // Review happens in the dedicated page now
 
   const rows = data ?? []
+
+  // Check if we have an inspector filter
+  useEffect(() => {
+    if (inspectorFilter) {
+      // Update page title to show filtered view
+      document.title = `Inspections - Inspector ${inspectorFilter} | Manager Panel`
+    }
+  }, [inspectorFilter])
   const [query, setQuery] = useState("")
   const [fromDate, setFromDate] = useState<string>("")
   const [toDate, setToDate] = useState<string>("")

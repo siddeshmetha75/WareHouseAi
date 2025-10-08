@@ -43,9 +43,16 @@ export default function InspectorDashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["inspector-warehouses", user?.id],
     queryFn: async () => {
-      if (!user?.id) return [] as Warehouse[]
+      if (!user?.id) {
+        console.log('No user ID available')
+        return []
+      }
+
+      console.log('Fetching warehouses for inspector ID:', user.id)
       const apiWarehouses = await fetchInspectorWarehouses(user.id)
-  
+
+      console.log('API returned warehouses:', apiWarehouses)
+
       const mapped: Warehouse[] = apiWarehouses.map((w: any) => ({
         id: w.Id_Warehouse,
         name: w.Warehouse_Name,

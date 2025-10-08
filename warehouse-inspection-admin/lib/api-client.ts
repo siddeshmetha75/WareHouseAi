@@ -30,13 +30,13 @@ api.interceptors.response.use(
       // Clear auth data
       localStorage.removeItem('token');
       localStorage.removeItem('warehouse_auth_token');
-      
-      // Only redirect if we're in the browser
-      if (typeof window !== 'undefined') {
+
+      // Only redirect if we're in the browser and not currently on login page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         // Store the current URL to redirect back after login
         const returnUrl = window.location.pathname + window.location.search;
         window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
-        
+
         // Show access denied message
         const event = new CustomEvent('show-toast', {
           detail: {
