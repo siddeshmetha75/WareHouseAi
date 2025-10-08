@@ -4,15 +4,34 @@ import api from "./api-client"
 export type { Warehouse, Commodity } from "@/lib/types"
 
 export async function login(email: string, password: string, customToken: string = "MyCustomToken") {
-  const { data } = await api.post(
-    "/auth/login",
-    { EmailId: email, Password: password },
-    { headers: { Authorization: `Bearer ${customToken}` } }
-  )
-  if (data?.token) {
-    localStorage.setItem("token", data.token)
+  try {
+    const { data } = await api.post(
+      "/auth/login",
+      { EmailId: email, Password: password },
+      { headers: { Authorization: `Bearer ${customToken}` } }
+    )
+    if (data?.token) {
+      localStorage.setItem("token", data.token)
+    }
+    return data
+  } catch (error: any) {
+    // Enhanced error handling for login
+    if (error.response?.status === 401) {
+      throw new Error("Invalid email or password. Please check your credentials and try again.")
+    } else if (error.response?.status === 404) {
+      throw new Error("No account found with this email address.")
+    } else if (error.response?.status === 403) {
+      throw new Error("Your account has been disabled. Please contact support.")
+    } else if (error.response?.status >= 500) {
+      throw new Error("Server error. Please try again later.")
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error("Request timeout. Please check your internet connection and try again.")
+    } else if (!error.response) {
+      throw new Error("Network error. Please check your internet connection and try again.")
+    } else {
+      throw new Error(error.response?.data?.message || "Login failed. Please try again.")
+    }
   }
-  return data
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
@@ -62,23 +81,57 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   }
 }
 
-export async function fetchInspectorWarehouses(inspectorId: number): Promise<Warehouse[]> {
-  const { data } = await api.get(`/api/warehouses`, { params: { inspector_id: inspectorId } });
-  return data;
-}
+export async function fetchInspectorWarehouses(inspectorId: number): Promise<ApiWarehouse[]> {
+  try {
+    console.log('Fetching warehouses for inspector ID:', inspectorId)
 
-export async function fetchCommodities(): Promise<Commodity[]> {
-  const { data } = await api.get("/commodities")
-  return data.map((c: any) => ({
-    id: c.IdCommodity,
-    Commodity_Name: c.Commodity_Name,
-    Storage: c.CommodityStorage,
-    Category: c.Category || "",
-    Description: c.Description || "",
-    Unit: c.Unit || "Kg",
-    IsActive: true,
-    CreatedAt: new Date().toISOString(),
-  }))
+    // Try to get warehouses directly assigned to inspector via user-warehouse mapping
+    const userWarehouseMaps = await getUserWarehouseMaps()
+    console.log('User warehouse maps:', userWarehouseMaps)
+
+    const inspectorMappings = userWarehouseMaps.filter(mapping => mapping.User_id === inspectorId)
+    console.log('Inspector mappings found:', inspectorMappings.length)
+
+    if (inspectorMappings.length > 0) {
+      const warehouseIds = inspectorMappings.map(mapping => mapping.Warehouse_id)
+      console.log('Warehouse IDs from user mappings:', warehouseIds)
+
+      // Get all warehouses and filter by IDs instead of calling getWarehouse individually
+      const allWarehouses = await getWarehouses()
+      const warehouses = allWarehouses.filter(warehouse =>
+        warehouseIds.includes(warehouse.Id_Warehouse)
+      )
+      console.log('Warehouses from user mappings:', warehouses)
+      return warehouses
+    }
+
+    // Fallback: Get warehouses through commodity-warehouse mappings
+    const mappings = await getAllCommodityWarehouseMaps()
+    console.log('All commodity warehouse mappings:', mappings)
+
+    const inspectorMappings2 = mappings.filter(mapping => mapping.InspectorId === inspectorId)
+    console.log('Inspector commodity mappings found:', inspectorMappings2.length)
+
+    const warehouseIds2 = [...new Set(inspectorMappings2.map(mapping => mapping.WarehouseId))]
+    console.log('Warehouse IDs from commodity mappings:', warehouseIds2)
+
+    if (warehouseIds2.length === 0) {
+      console.log('No warehouses found for inspector ID:', inspectorId)
+      return [] // No warehouses assigned to this inspector
+    }
+
+    // Get all warehouses and filter by IDs
+    const allWarehouses2 = await getWarehouses()
+    const warehouses2 = allWarehouses2.filter(warehouse =>
+      warehouseIds2.includes(warehouse.Id_Warehouse)
+    )
+    console.log('Warehouses from commodity mappings:', warehouses2)
+
+    return warehouses2
+  } catch (error) {
+    console.error('Error fetching inspector warehouses:', error)
+    throw new Error('Failed to load assigned warehouses')
+  }
 }
 
 // Questions / Inspections
@@ -129,6 +182,7 @@ export async function createInspectionWithAnswers(payload: {
   // Normalize to expected shape
   return {
     inspection_id: data?.inspection_id ?? data?.Id_Inspections ?? data?.id,
+    saved_answers: data?.saved_answers ?? payload.answers.length,
   }
 }
 

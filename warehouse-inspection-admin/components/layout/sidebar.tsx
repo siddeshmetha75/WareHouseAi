@@ -52,16 +52,16 @@ const navigation = [
     icon: CheckCircle2,
     roles: ["Manager"],
   },
+  // {
+  //   name: "Inspector Mapping",
+  //   href: "/manager/mappings",
+  //   icon: Package,
+  //   roles: ["Manager"],
+  // },
   {
-    name: "Inspector Mapping",
-    href: "/manager/mappings",
-    icon: Package,
-    roles: ["Manager"],
-  },
-  {
-    name: "Inspectors",
-    href: "/manager/inspectors",
-    icon: Users,
+    name: "Warehouse-Commodity",
+    href: "/manager/warehouse-commodity",
+    icon: Layers,
     roles: ["Manager"],
   },
   {
@@ -82,12 +82,12 @@ const navigation = [
     icon: Users,
     roles: ["Admin"],
   },
-  {
-    name: "User-Warehouse Map",
-    href: "/admin/user-warehouse",
-    icon: Warehouse,
-    roles: ["Admin"],
-  },
+  // {
+  //   name: "User-Warehouse Map",
+  //   href: "/admin/user-warehouse",
+  //   icon: Warehouse,
+  //   roles: ["Admin"],
+  // },
   {
     name: "Warehouse-Commodity",
     href: "/admin/warehouse-commodity",
