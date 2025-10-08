@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Trash2 } from "lucide-react"
+import { Loader2, Trash2, Edit2 } from "lucide-react"
 import {
   getUsers,
   getWarehouses,
   getUserWarehouseMaps,
   createUserWarehouseMap,
+  updateUserWarehouseMap,
   deleteUserWarehouseMap,
   type ApiUserWarehouseMap,
 } from "@/lib/api"
@@ -24,6 +25,9 @@ export default function UserWarehousePage() {
   const [warehouseId, setWarehouseId] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingMap, setEditingMap] = useState<ApiUserWarehouseMap | null>(null)
+  const [editManagerId, setEditManagerId] = useState<string>("")
+  const [editWarehouseId, setEditWarehouseId] = useState<string>("")
 
   const load = async () => {
     setLoading(true)
@@ -60,7 +64,6 @@ export default function UserWarehousePage() {
     setSaving(true)
     try {
       await createUserWarehouseMap({
-        User_id: 0, // Not needed for manager-warehouse mapping
         Manager_id: Number(managerId),
         Warehouse_id: Number(warehouseId),
       })
@@ -70,6 +73,50 @@ export default function UserWarehousePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleEdit = (map: ApiUserWarehouseMap) => {
+    setEditingMap(map)
+    setEditManagerId(String(map.Manager_id))
+    setEditWarehouseId(String(map.Warehouse_id))
+  }
+
+  const handleUpdate = async () => {
+    if (!editingMap || !editManagerId || !editWarehouseId) return
+
+    // Check if the new combination already exists (excluding current mapping)
+    const newMid = Number(editManagerId)
+    const newWid = Number(editWarehouseId)
+    const exists = maps.some((mm) =>
+      mm.Manager_id === newMid &&
+      mm.Warehouse_id === newWid &&
+      mm.Id_User_Warehouse_Map !== editingMap.Id_User_Warehouse_Map
+    )
+
+    if (exists) {
+      alert("This manager-warehouse combination already exists!")
+      return
+    }
+
+    setSaving(true)
+    try {
+      await updateUserWarehouseMap(editingMap.Id_User_Warehouse_Map, {
+        Manager_id: newMid,
+        Warehouse_id: newWid,
+      })
+      setEditingMap(null)
+      setEditManagerId("")
+      setEditWarehouseId("")
+      await load()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMap(null)
+    setEditManagerId("")
+    setEditWarehouseId("")
   }
 
   const handleDelete = async (id: number) => {
@@ -142,6 +189,66 @@ export default function UserWarehousePage() {
         </CardContent>
       </Card>
 
+      {editingMap && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit Manager-Warehouse Mapping</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="space-y-2">
+              <Label>Manager</Label>
+              <Select value={editManagerId} onValueChange={setEditManagerId} disabled={saving}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map((m) => (
+                    <SelectItem key={m.idusers} value={String(m.idusers)}>
+                      {m.Full_Name || m.UserName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Warehouse</Label>
+              <Select value={editWarehouseId} onValueChange={setEditWarehouseId} disabled={saving}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((w) => (
+                    <SelectItem key={w.Id_Warehouse} value={String(w.Id_Warehouse)}>
+                      {w.Warehouse_Name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Button onClick={handleUpdate} disabled={saving || !editManagerId || !editWarehouseId}>
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update"
+                )}
+              </Button>
+            </div>
+
+            <div>
+              <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Manager-Warehouse Mappings</CardTitle>
@@ -152,7 +259,7 @@ export default function UserWarehousePage() {
               <TableRow>
                 <TableHead>Manager</TableHead>
                 <TableHead>Warehouse</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -167,14 +274,26 @@ export default function UserWarehousePage() {
                     {m.WarehouseName || `Warehouse ${m.Warehouse_id}`}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(m.Id_User_Warehouse_Map)}
-                      aria-label="Delete mapping"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(m)}
+                        disabled={saving || editingMap !== null}
+                        aria-label="Edit mapping"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(m.Id_User_Warehouse_Map)}
+                        disabled={saving}
+                        aria-label="Delete mapping"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
