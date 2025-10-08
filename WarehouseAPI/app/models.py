@@ -76,8 +76,7 @@ class Users(Base):
     commodity_warehouse_map: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.InspectorId]', back_populates='users')
     commodity_warehouse_map_: Mapped[list['CommodityWarehouseMap']] = relationship('CommodityWarehouseMap', foreign_keys='[CommodityWarehouseMap.ManagerId]', back_populates='users_')
     managers: Mapped[list['Managers']] = relationship('Managers', back_populates='users')
-    user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', foreign_keys='[UserWarehouseMap.Manager_id]', back_populates='Manager')
-    user_warehouse_map_: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', foreign_keys='[UserWarehouseMap.User_id]', back_populates='User')
+    user_warehouse_map: Mapped[list['UserWarehouseMap']] = relationship('UserWarehouseMap', back_populates='Manager')
     inspections: Mapped[list['Inspections']] = relationship('Inspections', back_populates='users')
 
 
@@ -218,20 +217,16 @@ class UserWarehouseMap(Base):
     __tablename__ = 'user_warehouse_map'
     __table_args__ = (
         ForeignKeyConstraint(['Manager_id'], ['users.idusers'], name='fk_managerId_IdManager'),
-        ForeignKeyConstraint(['User_id'], ['users.idusers'], name='fk_userid_IdUser'),
         ForeignKeyConstraint(['Warehouse_id'], ['warehouses.Id_Warehouse'], name='fk_warehouse_id'),
         Index('fk_managerId_IdManager_idx', 'Manager_id'),
-        Index('fk_userid_IdUser_idx', 'User_id'),
         Index('fk_warehouse_id_idx', 'Warehouse_id')
     )
 
     Id_User_Warehouse_Map: Mapped[int] = mapped_column(Integer, primary_key=True)
-    User_id: Mapped[int] = mapped_column(Integer, nullable=False)
     Warehouse_id: Mapped[int] = mapped_column(Integer, nullable=False)
     Manager_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    Manager: Mapped['Users'] = relationship('Users', foreign_keys=[Manager_id], back_populates='user_warehouse_map')
-    User: Mapped['Users'] = relationship('Users', foreign_keys=[User_id], back_populates='user_warehouse_map_')
+    Manager: Mapped['Users'] = relationship('Users', back_populates='user_warehouse_map')
     Warehouse: Mapped['Warehouses'] = relationship('Warehouses', back_populates='user_warehouse_map')
 
 
@@ -241,6 +236,7 @@ class WarehouseCommodity(Base):
         ForeignKeyConstraint(['CommodityMasterId'], ['commoditymaster.IdCommodity'], name='fk_commodityIdd'),
         ForeignKeyConstraint(['SeasonId'], ['seasons.IdSeason'], name='fk_SeasonIdd'),
         ForeignKeyConstraint(['WarehouseId'], ['warehouses.Id_Warehouse'], name='fk_WarehouseIdd'),
+        Index('fk_ManagerIdd_idx', 'Manager_Id'),
         Index('fk_SeasonId_idx', 'SeasonId'),
         Index('fk_WarehouseId_idx', 'WarehouseId'),
         Index('fk_commodityId_idx', 'CommodityMasterId')
@@ -250,6 +246,7 @@ class WarehouseCommodity(Base):
     CommodityMasterId: Mapped[int] = mapped_column(Integer, nullable=False)
     SeasonId: Mapped[int] = mapped_column(Integer, nullable=False)
     WarehouseId: Mapped[int] = mapped_column(Integer, nullable=False)
+    Manager_Id: Mapped[int] = mapped_column(Integer, nullable=False)
     Insert_Date: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
 
