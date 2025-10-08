@@ -114,3 +114,39 @@ def get_active_by_warehouse(
         response.append(item)
 
     return response
+
+@router.get("/by-manager/{manager_id}", response_model=list[WarehouseCommodityResponse])
+def get_by_manager(
+    manager_id: int,
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    results = (
+        db.query(
+            WarehouseCommodity,
+            Warehouses.Warehouse_Name.label("WarehouseName"),
+            Commoditymaster.Commodity_Name.label("CommodityName"),
+            Seasons.Season_Name.label("SeasonName"),
+            Users.Full_Name.label("ManagerName"),
+        )
+        .join(Warehouses, WarehouseCommodity.WarehouseId == Warehouses.Id_Warehouse)
+        .join(Commoditymaster, WarehouseCommodity.CommodityMasterId == Commoditymaster.IdCommodity)
+        .join(Seasons, WarehouseCommodity.SeasonId == Seasons.IdSeason)
+        .join(Users, WarehouseCommodity.Manager_Id == Users.idusers)
+        .filter(
+            WarehouseCommodity.Manager_Id == manager_id,
+            WarehouseCommodity.Is_Active == 1
+        )
+        .all()
+    )
+
+    response = []
+    for wc, wname, cname, sname, mname in results:
+        item = WarehouseCommodityResponse.from_orm(wc)
+        item.WarehouseName = wname
+        item.CommodityName = cname
+        item.SeasonName = sname
+        item.ManagerName = mname
+        response.append(item)
+
+    return response
