@@ -621,7 +621,6 @@ export async function updateCommodity(id: number, payload: UpdateApiCommodity): 
   const { data } = await api.put<ApiCommodity>(`/commodities/${id}`, payload)
   return data
 }
-
 export async function deleteCommodity(id: number): Promise<void> {
   await api.delete(`/commodities/${id}`)
 }
@@ -637,15 +636,41 @@ export async function getSeasons(): Promise<ApiSeason[]> {
   return data
 }
 
-// Commodity-Warehouse Map CRUD (manager-inspector mapping with commodity & season)
-export interface ApiCommodityWarehouseMapAll {
-  Id_CommodityWarehouseMap: number
-  WarehouseId: number
-  ManagerId: number
-  InspectorId: number
-  CommodityId: number
+// Warehouse Commodity Mappings for Manager
+export interface CreateWarehouseCommodityPayload {
+  CommodityMasterId: number
   SeasonId: number
-  Is_Active: number | null
+  WarehouseId: number
+  Manager_Id: number
+}
+
+export interface ApiWarehouseCommodity {
+  CommodityMasterId: number
+  SeasonId: number
+  WarehouseId: number
+  Manager_Id: number
+  Idwarehouse_commodity: number
+  Insert_Date: string
+  Is_Active: number
+  WarehouseName: string
+  CommodityName: string
+  SeasonName: string
+  ManagerName: string
+}
+
+export async function getWarehousesByManager(managerId: number): Promise<ApiWarehouse[]> {
+  const { data } = await api.get<ApiWarehouse[]>(`/warehouses/by-manager/${managerId}`)
+  return data
+}
+
+export async function createWarehouseCommodity(payload: CreateWarehouseCommodityPayload): Promise<ApiWarehouseCommodity> {
+  const { data } = await api.post<ApiWarehouseCommodity>('/warehousecommodity/', payload)
+  return data
+}
+
+export async function getWarehouseCommodities(): Promise<ApiWarehouseCommodity[]> {
+  const { data } = await api.get<ApiWarehouseCommodity[]>('/warehousecommodity/')
+  return data
 }
 
 export interface CreateCommodityWarehouseMapPayload {
@@ -657,13 +682,19 @@ export interface CreateCommodityWarehouseMapPayload {
   Is_Active?: number
 }
 
-export async function getAllCommodityWarehouseMaps(): Promise<ApiCommodityWarehouseMapAll[]> {
-  const { data } = await api.get<ApiCommodityWarehouseMapAll[]>(`/commodity-warehouse-map/`)
-  return data
+// Commodity-Warehouse Map CRUD (manager-inspector mapping with commodity & season)
+export interface ApiCommodityWarehouseMapAll {
+  Id_CommodityWarehouseMap: number
+  WarehouseId: number
+  ManagerId: number
+  InspectorId: number
+  CommodityId: number
+  SeasonId: number
+  Is_Active: number | null
 }
 
-export async function createCommodityWarehouseMap(payload: CreateCommodityWarehouseMapPayload): Promise<ApiCommodityWarehouseMapAll> {
-  const { data } = await api.post<ApiCommodityWarehouseMapAll>(`/commodity-warehouse-map/`, payload)
+export async function getAllCommodityWarehouseMaps(): Promise<ApiCommodityWarehouseMapAll[]> {
+  const { data } = await api.get<ApiCommodityWarehouseMapAll[]>(`/commodity-warehouse-map/`)
   return data
 }
 
