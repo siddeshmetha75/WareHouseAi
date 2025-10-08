@@ -108,14 +108,22 @@ def get_average_completed_percentage(db: Session) -> float:
         return 0.0
     return round((completed / total) * 100, 2)
 
+# def get_warehouses_for_inspector(db: Session, inspector_id: int) -> List[Dict]:
+#     sql = text("""
+#         SELECT w.Id_Warehouse AS id, w.Warehouse_Name AS name, w.Location AS location
+#         FROM user_warehouse_map uw
+#         JOIN warehouses w ON uw.Warehouse_id = w.Id_Warehouse
+#         WHERE uw.User_id = :inspector_id
+#     """)
+#     rows = db.execute(sql, {"inspector_id": inspector_id}).mappings().all()
+#     return [{"id": r["id"], "name": r["name"], "location": r["location"]} for r in rows]
+
 def get_warehouses_for_inspector(db: Session, inspector_id: int) -> List[Dict]:
     sql = text("""
         SELECT w.Id_Warehouse AS id, w.Warehouse_Name AS name, w.Location AS location
-        FROM user_warehouse_map uw
-        JOIN warehouses w ON uw.Warehouse_id = w.Id_Warehouse
-        WHERE uw.User_id = :inspector_id
+        FROM warehouses w
     """)
-    rows = db.execute(sql, {"inspector_id": inspector_id}).mappings().all()
+    rows = db.execute(sql).mappings().all()
     return [{"id": r["id"], "name": r["name"], "location": r["location"]} for r in rows]
 
 def get_all_commodities(db: Session):
