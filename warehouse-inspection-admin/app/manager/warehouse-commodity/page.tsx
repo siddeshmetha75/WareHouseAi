@@ -9,18 +9,7 @@ import { toast } from 'sonner'
 import { Trash2, Eye, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/auth-context'
-import { 
-  getAllCommodityWarehouseMaps, 
-  createCommodityWarehouseMap, 
-  updateCommodityWarehouseMap, 
-  deleteCommodityWarehouseMap,
-  getWarehouses,
-  getCommodities,
-  getSeasons,
-  getUsers,
-  getManagerInspectors,
-  listInspections
-} from '@/lib/api'
+import { CreateWarehouseCommodityDialog } from '@/components/manager/create-warehouse-commodity-dialog'
 
 interface Warehouse {
   Id_Warehouse: number
@@ -166,10 +155,7 @@ export default function ManagerWarehouseCommodityPage() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Warehouse-Commodity Management</h1>
-        <p className="text-gray-600 mt-2">
-          Manage warehouse-commodity mappings for your inspectors and track completed inspections.
-        </p>
+        <CreateWarehouseCommodityDialog onSuccess={fetchData} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
