@@ -537,7 +537,7 @@ export async function updateUser(id: number, payload: UpdateApiUser): Promise<Ap
 // User-Warehouse mapping
 export interface ApiUserWarehouseMap {
   Id_User_Warehouse_Map: number
-  User_id: number
+  User_id?: number  // Optional since not in database model
   Warehouse_id: number
   Manager_id: number
   UserName?: string | null
@@ -548,7 +548,7 @@ export interface ApiUserWarehouseMap {
 }
 
 export interface CreateUserWarehouseMap {
-  User_id: number
+  User_id?: number  // Optional for manager-warehouse mappings
   Warehouse_id: number
   Manager_id: number
 }

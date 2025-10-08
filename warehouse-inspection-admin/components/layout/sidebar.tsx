@@ -82,12 +82,12 @@ const navigation = [
     icon: Users,
     roles: ["Admin"],
   },
-  // {
-  //   name: "User-Warehouse Map",
-  //   href: "/admin/user-warehouse",
-  //   icon: Warehouse,
-  //   roles: ["Admin"],
-  // },
+  {
+    name: "Manager-Warehouse Map",
+    href: "/admin/user-warehouse",
+    icon: Warehouse,
+    roles: ["Admin"],
+  },
   {
     name: "Warehouse-Commodity",
     href: "/admin/warehouse-commodity",

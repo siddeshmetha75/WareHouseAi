@@ -148,10 +148,15 @@ export default function ManagerWarehouseCommodityPage() {
     })
   }
 
-  const getCompletedInspectionsCount = (inspectorId: number) => {
-    return getInspectorInspections(inspectorId).filter(
-      inspection => inspection.Status.toLowerCase() === 'accepted'
-    ).length
+  const getUniqueCompletedInspectionsCount = (inspectorId: number) => {
+    const inspectorInspections = getInspectorInspections(inspectorId)
+    const acceptedInspections = inspectorInspections.filter(
+      i => i.Status?.toLowerCase() === 'accepted'
+    )
+
+    // Count unique inspections by ID to avoid double-counting
+    const uniqueInspections = new Set(acceptedInspections.map(i => i.Id_Inspections || i.id))
+    return uniqueInspections.size
   }
 
   if (loading) {
@@ -219,10 +224,7 @@ export default function ManagerWarehouseCommodityPage() {
               </TableHeader>
               <TableBody>
                 {mappings.map((mapping) => {
-                  const inspectorInspections = getInspectorInspections(mapping.InspectorId)
-                  const completedCount = inspectorInspections.filter(
-                    i => i.Status?.toLowerCase() === 'accepted'
-                  ).length
+                  const completedCount = getUniqueCompletedInspectionsCount(mapping.InspectorId)
 
                   return (
                     <TableRow key={mapping.Id_CommodityWarehouseMap}>
@@ -339,9 +341,7 @@ export default function ManagerWarehouseCommodityPage() {
               if (!inspectorId) return null
 
               const inspectorInspections = getInspectorInspections(inspectorId)
-              const completedCount = inspectorInspections.filter(
-                i => i.Status?.toLowerCase() === 'accepted'
-              ).length
+              const completedCount = getUniqueCompletedInspectionsCount(inspectorId)
 
               return (
                 <div key={inspectorId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
