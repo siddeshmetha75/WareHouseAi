@@ -236,6 +236,7 @@ class WarehouseCommodity(Base):
         ForeignKeyConstraint(['CommodityMasterId'], ['commoditymaster.IdCommodity'], name='fk_commodityIdd'),
         ForeignKeyConstraint(['SeasonId'], ['seasons.IdSeason'], name='fk_SeasonIdd'),
         ForeignKeyConstraint(['WarehouseId'], ['warehouses.Id_Warehouse'], name='fk_WarehouseIdd'),
+        Index('fk_InspectorIdd_idx', 'InspectorId'),
         Index('fk_ManagerIdd_idx', 'Manager_Id'),
         Index('fk_SeasonId_idx', 'SeasonId'),
         Index('fk_WarehouseId_idx', 'WarehouseId'),
@@ -247,6 +248,7 @@ class WarehouseCommodity(Base):
     SeasonId: Mapped[int] = mapped_column(Integer, nullable=False)
     WarehouseId: Mapped[int] = mapped_column(Integer, nullable=False)
     Manager_Id: Mapped[int] = mapped_column(Integer, nullable=False)
+    InspectorId: Mapped[int] = mapped_column(Integer, nullable=False)
     Insert_Date: Mapped[Optional[datetime.datetime]] = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     Is_Active: Mapped[Optional[int]] = mapped_column(Integer, server_default=text("'1'"))
 
