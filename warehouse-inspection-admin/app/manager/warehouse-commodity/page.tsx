@@ -22,10 +22,12 @@ import {
   getWarehousesByManager,
   getCommodities,
   getSeasons,
+  getManagerInspectors,
   ApiWarehouseCommodity,
   ApiWarehouse,
   ApiCommodity,
-  ApiSeason
+  ApiSeason,
+  ApiManagerInspector,
 } from '@/lib/api'
 import { CreateWarehouseCommodityDialog } from '@/components/manager/create-warehouse-commodity-dialog'
 
@@ -37,6 +39,7 @@ export default function ManagerWarehouseCommodityPage() {
   const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([])
   const [commodities, setCommodities] = useState<ApiCommodity[]>([])
   const [seasons, setSeasons] = useState<ApiSeason[]>([])
+  const [inspectors, setInspectors] = useState<ApiManagerInspector[]>([])
   const [editingRow, setEditingRow] = useState<number | null>(null)
   const [editFormData, setEditFormData] = useState<Partial<ApiWarehouseCommodity>>({})
 
@@ -50,17 +53,19 @@ export default function ManagerWarehouseCommodityPage() {
 
     try {
       setLoading(true)
-      const [warehouseCommodities, warehousesRes, commoditiesRes, seasonsRes] = await Promise.all([
+      const [warehouseCommodities, warehousesRes, commoditiesRes, seasonsRes, inspectorsRes] = await Promise.all([
         getWarehouseCommoditiesByManager(user.id),
         getWarehousesByManager(user.id),
         getCommodities(),
         getSeasons(),
+        getManagerInspectors(user.id),
       ])
 
       setMappings(warehouseCommodities)
       setWarehouses(warehousesRes)
       setCommodities(commoditiesRes)
       setSeasons(seasonsRes)
+      setInspectors(inspectorsRes)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load data')
@@ -83,6 +88,7 @@ export default function ManagerWarehouseCommodityPage() {
         CommodityMasterId: editFormData.CommodityMasterId!,
         SeasonId: editFormData.SeasonId!,
         Manager_Id: editFormData.Manager_Id!,
+        InspectorId: editFormData.InspectorId!,
         Is_Active: editFormData.Is_Active!,
       })
 
@@ -175,6 +181,7 @@ export default function ManagerWarehouseCommodityPage() {
                   <TableHead>Warehouse</TableHead>
                   <TableHead>Commodity</TableHead>
                   <TableHead>Season</TableHead>
+                  <TableHead>Inspector</TableHead>
                   <TableHead>Manager</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created Date</TableHead>
@@ -254,6 +261,29 @@ export default function ManagerWarehouseCommodityPage() {
                           </Select>
                         ) : (
                           mapping.SeasonName
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Select
+                            value={editFormData.InspectorId?.toString()}
+                            onValueChange={(value) =>
+                              setEditFormData(prev => ({ ...prev, InspectorId: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {inspectors.map((inspector) => (
+                                <SelectItem key={inspector.id} value={inspector.id.toString()}>
+                                  {inspector.Full_Name || inspector.UserName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          mapping.InspectorName || 'Not assigned'
                         )}
                       </TableCell>
                       <TableCell>

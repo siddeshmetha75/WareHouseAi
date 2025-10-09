@@ -34,17 +34,20 @@ import {
   getWarehousesByManager,
   getCommodities,
   getSeasons,
+  getManagerInspectors,
   updateWarehouseCommodity,
   type ApiWarehouseCommodity,
   type ApiWarehouse,
   type ApiCommodity,
-  type ApiSeason
+  type ApiSeason,
+  type ApiManagerInspector,
 } from '@/lib/api'
 
 const formSchema = z.object({
   WarehouseId: z.number().min(1, 'Please select a warehouse'),
   CommodityMasterId: z.number().min(1, 'Please select a commodity'),
   SeasonId: z.number().min(1, 'Please select a season'),
+  InspectorId: z.number().min(1, 'Please select an inspector'),
   Is_Active: z.number().min(0).max(1, 'Status must be 0 or 1'),
 })
 
@@ -67,6 +70,7 @@ export function EditWarehouseCommodityDialog({
   const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([])
   const [commodities, setCommodities] = useState<ApiCommodity[]>([])
   const [seasons, setSeasons] = useState<ApiSeason[]>([])
+  const [inspectors, setInspectors] = useState<ApiManagerInspector[]>([])
   const { user } = useAuth()
 
   const form = useForm<FormValues>({
@@ -75,6 +79,7 @@ export function EditWarehouseCommodityDialog({
       WarehouseId: 0,
       CommodityMasterId: 0,
       SeasonId: 0,
+      InspectorId: 0,
       Is_Active: 1,
     },
   })
@@ -93,6 +98,7 @@ export function EditWarehouseCommodityDialog({
         WarehouseId: mapping.WarehouseId,
         CommodityMasterId: mapping.CommodityMasterId,
         SeasonId: mapping.SeasonId,
+        InspectorId: mapping.InspectorId || 0,
         Is_Active: mapping.Is_Active,
       })
     }
@@ -103,15 +109,17 @@ export function EditWarehouseCommodityDialog({
 
     try {
       setLoading(true)
-      const [warehousesRes, commoditiesRes, seasonsRes] = await Promise.all([
+      const [warehousesRes, commoditiesRes, seasonsRes, inspectorsRes] = await Promise.all([
         getWarehousesByManager(user.id),
         getCommodities(),
         getSeasons(),
+        getManagerInspectors(user.id),
       ])
 
       setWarehouses(warehousesRes)
       setCommodities(commoditiesRes)
       setSeasons(seasonsRes)
+      setInspectors(inspectorsRes)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load form data')
@@ -131,6 +139,7 @@ export function EditWarehouseCommodityDialog({
         CommodityMasterId: values.CommodityMasterId,
         SeasonId: values.SeasonId,
         Manager_Id: mapping.Manager_Id,
+        InspectorId: values.InspectorId,
         Is_Active: values.Is_Active,
       })
 
@@ -233,6 +242,34 @@ export function EditWarehouseCommodityDialog({
                       {seasons.map((season) => (
                         <SelectItem key={season.IdSeason} value={season.IdSeason.toString()}>
                           {season.Season_Name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="InspectorId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Inspector</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                    value={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an inspector" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {inspectors.map((inspector) => (
+                        <SelectItem key={inspector.id} value={inspector.id.toString()}>
+                          {inspector.Full_Name || inspector.UserName}
                         </SelectItem>
                       ))}
                     </SelectContent>

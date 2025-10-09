@@ -36,11 +36,13 @@ import {
   getWarehousesByManager,
   getCommodities,
   getSeasons,
+  getManagerInspectors,
   createWarehouseCommodity,
   type CreateWarehouseCommodityPayload,
   type ApiWarehouse,
   type ApiCommodity,
-  type ApiSeason
+  type ApiSeason,
+  type ApiManagerInspector,
 } from '@/lib/api'
 
 const formSchema = z.object({
@@ -48,6 +50,7 @@ const formSchema = z.object({
   CommodityMasterId: z.number().min(1, 'Please select a commodity'),
   SeasonId: z.number().min(1, 'Please select a season'),
   Manager_Id: z.number().min(1, 'Manager ID is required'),
+  InspectorId: z.number().min(1, 'Please select an inspector'),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -62,6 +65,7 @@ export function CreateWarehouseCommodityDialog({ onSuccess }: CreateWarehouseCom
   const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([])
   const [commodities, setCommodities] = useState<ApiCommodity[]>([])
   const [seasons, setSeasons] = useState<ApiSeason[]>([])
+  const [inspectors, setInspectors] = useState<ApiManagerInspector[]>([])
   const { user } = useAuth()
 
   const form = useForm<FormValues>({
@@ -71,6 +75,7 @@ export function CreateWarehouseCommodityDialog({ onSuccess }: CreateWarehouseCom
       CommodityMasterId: 0,
       SeasonId: 0,
       Manager_Id: user?.id || 0,
+      InspectorId: 0,
     },
   })
 
@@ -86,15 +91,17 @@ export function CreateWarehouseCommodityDialog({ onSuccess }: CreateWarehouseCom
 
     try {
       setLoading(true)
-      const [warehousesRes, commoditiesRes, seasonsRes] = await Promise.all([
+      const [warehousesRes, commoditiesRes, seasonsRes, inspectorsRes] = await Promise.all([
         getWarehousesByManager(user.id),
         getCommodities(),
         getSeasons(),
+        getManagerInspectors(user.id),
       ])
 
       setWarehouses(warehousesRes)
       setCommodities(commoditiesRes)
       setSeasons(seasonsRes)
+      setInspectors(inspectorsRes)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load form data')
@@ -112,6 +119,7 @@ export function CreateWarehouseCommodityDialog({ onSuccess }: CreateWarehouseCom
         CommodityMasterId: values.CommodityMasterId,
         SeasonId: values.SeasonId,
         Manager_Id: values.Manager_Id,
+        InspectorId: values.InspectorId,
       }
 
       await createWarehouseCommodity(payload)
@@ -221,6 +229,34 @@ export function CreateWarehouseCommodityDialog({ onSuccess }: CreateWarehouseCom
                       {seasons.map((season) => (
                         <SelectItem key={season.IdSeason} value={season.IdSeason.toString()}>
                           {season.Season_Name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="InspectorId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Inspector</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                    value={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an inspector" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {inspectors.map((inspector) => (
+                        <SelectItem key={inspector.id} value={inspector.id.toString()}>
+                          {inspector.Full_Name || inspector.UserName}
                         </SelectItem>
                       ))}
                     </SelectContent>

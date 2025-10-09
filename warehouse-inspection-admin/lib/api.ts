@@ -428,9 +428,17 @@ export async function updateInspectionDetails(
   return data
 }
 
+export interface ApiManagerInspector {
+  id: number
+  UserName?: string
+  Full_Name?: string
+  EmailId?: string
+  Role?: string
+}
+
 export async function getManagerInspectors(managerId: number) {
-  const { data } = await api.get(`/api/managers/${managerId}/inspectors`)
-  return data as Array<{ id: number; UserName?: string; Full_Name?: string; EmailId?: string; Role?: string }>
+  const { data } = await api.get<ApiManagerInspector[]>(`/api/managers/${managerId}/inspectors`)
+  return data
 }
 
 export async function getManagerInspections(managerId: number, status?: "Pending" | "Accepted" | "Rejected") {
@@ -642,6 +650,7 @@ export interface CreateWarehouseCommodityPayload {
   SeasonId: number
   WarehouseId: number
   Manager_Id: number
+  InspectorId: number
   Is_Active?: number
 }
 
@@ -650,6 +659,7 @@ export interface ApiWarehouseCommodity {
   SeasonId: number
   WarehouseId: number
   Manager_Id: number
+  InspectorId?: number
   Idwarehouse_commodity: number
   Insert_Date: string
   Is_Active: number
@@ -657,6 +667,7 @@ export interface ApiWarehouseCommodity {
   CommodityName: string
   SeasonName: string
   ManagerName: string
+  InspectorName?: string
 }
 
 export async function getWarehousesByManager(managerId: number): Promise<ApiWarehouse[]> {
