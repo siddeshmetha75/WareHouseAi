@@ -642,6 +642,7 @@ export interface CreateWarehouseCommodityPayload {
   SeasonId: number
   WarehouseId: number
   Manager_Id: number
+  Is_Active?: number
 }
 
 export interface ApiWarehouseCommodity {
@@ -668,15 +669,19 @@ export async function createWarehouseCommodity(payload: CreateWarehouseCommodity
   return data
 }
 
-export async function getWarehouseCommodities(): Promise<ApiWarehouseCommodity[]> {
-  const { data } = await api.get<ApiWarehouseCommodity[]>('/warehousecommodity/')
+export async function getWarehouseCommoditiesByManager(managerId: number): Promise<ApiWarehouseCommodity[]> {
+  const { data } = await api.get<ApiWarehouseCommodity[]>(`/warehousecommodity/by-manager/${managerId}`)
+  return data
+}
+
+export async function updateWarehouseCommodity(wcId: number, payload: Partial<CreateWarehouseCommodityPayload>): Promise<ApiWarehouseCommodity> {
+  const { data } = await api.put<ApiWarehouseCommodity>(`/warehousecommodity/${wcId}`, payload)
   return data
 }
 
 export interface CreateCommodityWarehouseMapPayload {
   WarehouseId: number
   ManagerId: number
-  InspectorId: number
   CommodityId: number
   SeasonId: number
   Is_Active?: number
