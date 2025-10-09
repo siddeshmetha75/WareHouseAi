@@ -2,66 +2,43 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageLoader, TableLoader } from '@/components/ui/page-loader'
 import { toast } from 'sonner'
-import { Trash2, Eye, CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { Trash2, CheckCircle2, Clock, XCircle, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from '@/contexts/auth-context'
+import {
+  getWarehouseCommoditiesByManager,
+  updateWarehouseCommodity,
+  getWarehousesByManager,
+  getCommodities,
+  getSeasons,
+  ApiWarehouseCommodity,
+  ApiWarehouse,
+  ApiCommodity,
+  ApiSeason
+} from '@/lib/api'
 import { CreateWarehouseCommodityDialog } from '@/components/manager/create-warehouse-commodity-dialog'
-
-interface Warehouse {
-  Id_Warehouse: number
-  Warehouse_Name: string
-  Location?: string | null
-  Code?: string | null
-}
-
-interface Commodity {
-  IdCommodity: number
-  Commodity_Name: string
-}
-
-interface Season {
-  IdSeason: number
-  Season_Name: string
-}
-
-interface WarehouseCommodityMap {
-  Id_CommodityWarehouseMap: number
-  WarehouseId: number
-  ManagerId: number
-  InspectorId: number
-  CommodityId: number
-  SeasonId: number
-  Is_Active: number | null
-  WarehouseName?: string
-  CommodityName?: string
-  InspectorName?: string
-  ManagerName?: string
-  SeasonName?: string
-}
-
-interface User {
-  id: number
-  UserName?: string
-  Full_Name?: string
-  EmailId?: string
-  Role?: string
-  idusers?: number
-}
 
 export default function ManagerWarehouseCommodityPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [mappings, setMappings] = useState<WarehouseCommodityMap[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [commodities, setCommodities] = useState<Commodity[]>([])
-  const [seasons, setSeasons] = useState<Season[]>([])
-  const [inspectors, setInspectors] = useState<User[]>([])
-  const [inspections, setInspections] = useState<any[]>([])
+  const [mappings, setMappings] = useState<ApiWarehouseCommodity[]>([])
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([])
+  const [commodities, setCommodities] = useState<ApiCommodity[]>([])
+  const [seasons, setSeasons] = useState<ApiSeason[]>([])
+  const [editingRow, setEditingRow] = useState<number | null>(null)
+  const [editFormData, setEditFormData] = useState<Partial<ApiWarehouseCommodity>>({})
 
   // Fetch all data
   useEffect(() => {
@@ -69,28 +46,21 @@ export default function ManagerWarehouseCommodityPage() {
   }, [])
 
   const fetchData = async () => {
+    if (!user?.id) return
+
     try {
       setLoading(true)
-      const [mappingsRes, warehousesRes, commoditiesRes, seasonsRes, inspectorsRes, inspectionsRes] = await Promise.all([
-        getAllCommodityWarehouseMaps(),
-        getWarehouses(),
+      const [warehouseCommodities, warehousesRes, commoditiesRes, seasonsRes] = await Promise.all([
+        getWarehouseCommoditiesByManager(user.id),
+        getWarehousesByManager(user.id),
         getCommodities(),
         getSeasons(),
-        getManagerInspectors(user?.id || 0),
-        listInspections()
       ])
 
-      // Deduplicate mappings by Id_CommodityWarehouseMap
-      const uniqueMappings = mappingsRes.filter((mapping: any, index: number, self: any[]) =>
-        index === self.findIndex((m: any) => m.Id_CommodityWarehouseMap === mapping.Id_CommodityWarehouseMap)
-      )
-
-      setMappings(uniqueMappings)
+      setMappings(warehouseCommodities)
       setWarehouses(warehousesRes)
       setCommodities(commoditiesRes)
       setSeasons(seasonsRes)
-      setInspectors(inspectorsRes)
-      setInspections(inspectionsRes)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load data')
@@ -99,17 +69,36 @@ export default function ManagerWarehouseCommodityPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'accepted':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />
-      case 'rejected':
-        return <XCircle className="h-4 w-4 text-red-500" />
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-500" />
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />
+  const handleEditMapping = (mapping: ApiWarehouseCommodity) => {
+    setEditingRow(mapping.Idwarehouse_commodity)
+    setEditFormData(mapping)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingRow) return
+
+    try {
+      await updateWarehouseCommodity(editingRow, {
+        WarehouseId: editFormData.WarehouseId!,
+        CommodityMasterId: editFormData.CommodityMasterId!,
+        SeasonId: editFormData.SeasonId!,
+        Manager_Id: editFormData.Manager_Id!,
+        Is_Active: editFormData.Is_Active!,
+      })
+
+      toast.success('Mapping updated successfully')
+      setEditingRow(null)
+      setEditFormData({})
+      fetchData()
+    } catch (error) {
+      console.error('Error updating mapping:', error)
+      toast.error('Failed to update mapping')
     }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingRow(null)
+    setEditFormData({})
   }
 
   const handleDeleteMapping = async (mappingId: number) => {
@@ -118,34 +107,16 @@ export default function ManagerWarehouseCommodityPage() {
     }
 
     try {
-      await deleteCommodityWarehouseMap(mappingId)
-      toast.success('Mapping deleted successfully')
-      fetchData() // Refresh the data
+      // For now, we'll show a message that deletion is not implemented
+      // In a real implementation, you'd call an API to delete the mapping
+      toast.info('Delete functionality not implemented yet')
+      // await deleteCommodityWarehouseMap(mappingId)
+      // toast.success('Mapping deleted successfully')
+      // fetchData() // Refresh the data
     } catch (error) {
       console.error('Error deleting mapping:', error)
       toast.error('Failed to delete mapping')
     }
-  }
-
-  const getInspectorInspections = (inspectorId: number) => {
-    return inspections.filter(inspection => {
-      const inspector = inspection.inspector
-      if (!inspector) return false
-
-      const inspectorIdentifier = inspector.idusers || inspector.id
-      return inspectorIdentifier === inspectorId
-    })
-  }
-
-  const getUniqueCompletedInspectionsCount = (inspectorId: number) => {
-    const inspectorInspections = getInspectorInspections(inspectorId)
-    const acceptedInspections = inspectorInspections.filter(
-      i => i.Status?.toLowerCase() === 'accepted'
-    )
-
-    // Count unique inspections by ID to avoid double-counting
-    const uniqueInspections = new Set(acceptedInspections.map(i => i.Id_Inspections || i.id))
-    return uniqueInspections.size
   }
 
   if (loading) {
@@ -171,20 +142,22 @@ export default function ManagerWarehouseCommodityPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Active Inspectors</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Active Mappings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inspectors.length}</div>
+            <div className="text-2xl font-bold">
+              {mappings.filter(m => m.Is_Active === 1).length}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Completed Inspections</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Unique Commodities</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {inspections.filter(i => i.Status.toLowerCase() === 'accepted').length}
+              {new Set(mappings.map(m => m.CommodityMasterId)).size}
             </div>
           </CardContent>
         </Card>
@@ -201,102 +174,165 @@ export default function ManagerWarehouseCommodityPage() {
                 <TableRow>
                   <TableHead>Warehouse</TableHead>
                   <TableHead>Commodity</TableHead>
-                  <TableHead>Inspector</TableHead>
                   <TableHead>Season</TableHead>
+                  <TableHead>Manager</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Completed Inspections</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {mappings.map((mapping) => {
-                  const completedCount = getUniqueCompletedInspectionsCount(mapping.InspectorId)
+                  const isEditing = editingRow === mapping.Idwarehouse_commodity
 
                   return (
-                    <TableRow key={mapping.Id_CommodityWarehouseMap}>
+                    <TableRow key={mapping.Idwarehouse_commodity}>
                       <TableCell className="font-medium">
-                        {warehouses.find(w => w.Id_Warehouse === mapping.WarehouseId)?.Warehouse_Name || `Warehouse ${mapping.WarehouseId}`}
+                        {isEditing ? (
+                          <Select
+                            value={editFormData.WarehouseId?.toString()}
+                            onValueChange={(value) =>
+                              setEditFormData(prev => ({ ...prev, WarehouseId: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {warehouses.map((warehouse) => (
+                                <SelectItem key={warehouse.Id_Warehouse} value={warehouse.Id_Warehouse.toString()}>
+                                  {warehouse.Warehouse_Name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          mapping.WarehouseName
+                        )}
                       </TableCell>
                       <TableCell>
-                        {commodities.find(c => c.IdCommodity === mapping.CommodityId)?.Commodity_Name || `Commodity ${mapping.CommodityId}`}
+                        {isEditing ? (
+                          <Select
+                            value={editFormData.CommodityMasterId?.toString()}
+                            onValueChange={(value) =>
+                              setEditFormData(prev => ({ ...prev, CommodityMasterId: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {commodities.map((commodity) => (
+                                <SelectItem key={commodity.IdCommodity} value={commodity.IdCommodity.toString()}>
+                                  {commodity.Commodity_Name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          mapping.CommodityName
+                        )}
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          const inspector = inspectors.find(i => {
-                            const inspectorId = i.idusers || i.id
-                            return inspectorId === mapping.InspectorId
-                          })
-                          return inspector?.UserName || `Inspector ${mapping.InspectorId}`
-                        })()}
+                        {isEditing ? (
+                          <Select
+                            value={editFormData.SeasonId?.toString()}
+                            onValueChange={(value) =>
+                              setEditFormData(prev => ({ ...prev, SeasonId: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {seasons.map((season) => (
+                                <SelectItem key={season.IdSeason} value={season.IdSeason.toString()}>
+                                  {season.Season_Name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          mapping.SeasonName
+                        )}
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          // Try to find season by SeasonId
-                          const season = seasons.find(s => s.IdSeason === mapping.SeasonId)
-                          if (season) return season.Season_Name
-
-                          // If seasons array is empty, show loading message
-                          if (seasons.length === 0) return 'Loading seasons...'
-
-                          // Fallback to SeasonId if no name found
-                          return mapping.SeasonId ? `Season ${mapping.SeasonId}` : 'No Season'
-                        })()}
+                        {mapping.ManagerName}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {mapping.Is_Active === 1 ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              <span className="text-sm text-green-600">Active</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 text-red-500" />
-                              <span className="text-sm text-red-600">Inactive</span>
-                            </>
-                          )}
-                        </div>
+                        {isEditing ? (
+                          <Select
+                            value={editFormData.Is_Active?.toString()}
+                            onValueChange={(value) =>
+                              setEditFormData(prev => ({ ...prev, Is_Active: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Active</SelectItem>
+                              <SelectItem value="0">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {mapping.Is_Active === 1 ? (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                <span className="text-sm text-green-600">Active</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-4 w-4 text-red-500" />
+                                <span className="text-sm text-red-600">Inactive</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          completedCount > 0
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {completedCount} completed
-                        </span>
+                        {new Date(mapping.Insert_Date).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const inspector = inspectors.find(i => {
-                                const inspectorId = i.idusers || i.id
-                                return inspectorId === mapping.InspectorId
-                              })
-
-                              if (inspector) {
-                                // Show loading toast and navigate to inspector's inspection list
-                                toast.info(`Loading inspections for ${inspector.UserName}...`)
-                                router.push(`/manager/inspections?inspector=${mapping.InspectorId}`)
-                              } else {
-                                toast.error('Inspector not found')
-                              }
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {completedCount > 0 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteMapping(mapping.Id_CommodityWarehouseMap)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          {isEditing ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSaveEdit}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCancelEdit}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditMapping(mapping)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteMapping(mapping.Idwarehouse_commodity)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </TableCell>
@@ -312,43 +348,6 @@ export default function ManagerWarehouseCommodityPage() {
               No warehouse-commodity mappings found.
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Inspections Summary */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Recent Inspection Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {inspectors.slice(0, 5).map((inspector) => {
-              const inspectorId = inspector.idusers || inspector.id
-              if (!inspectorId) return null
-
-              const inspectorInspections = getInspectorInspections(inspectorId)
-              const completedCount = getUniqueCompletedInspectionsCount(inspectorId)
-
-              return (
-                <div key={inspectorId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{inspector.UserName || 'Unknown'}</p>
-                    <p className="text-sm text-gray-600">{inspector.Full_Name || ''}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">Completed Inspections</p>
-                      <p className="font-semibold">{completedCount}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {getStatusIcon('pending')}
-                      {getStatusIcon('accepted')}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
         </CardContent>
       </Card>
     </div>
