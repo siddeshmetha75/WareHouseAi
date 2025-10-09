@@ -9,7 +9,7 @@ from ..models import Inspections, InspectionAnswers,Evidence, CommoditySeason, Q
 from ..schemas.inspection import ApproveRequest
 from sqlalchemy.orm import joinedload, contains_eager
 from .. import models
-from ..models import Users
+from ..models import Users, CommodityWarehouseMap
 from ..dependencies import require_auth_token, get_db
 
 router = APIRouter(prefix="/api", tags=["Manager"])
@@ -186,15 +186,43 @@ def review_inspection(
     }
 
 
+# @router.get("/managers/{manager_id}/inspectors")
+# def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
+#     sub = (
+#         db.query(UserWarehouseMap.User_id)
+#         .filter(UserWarehouseMap.Manager_id == manager_id)
+#         .distinct()
+#         .subquery()
+#     )
+#     rows = db.query(Users).filter(Users.idusers.in_(sub)).all()
+#     return [
+#         {
+#             "id": u.idusers,
+#             "UserName": u.UserName,
+#             "Full_Name": u.Full_Name,
+#             "EmailId": u.EmailId,
+#             "Role": u.Role,
+#         }
+#         for u in rows
+#     ]
+
 @router.get("/managers/{manager_id}/inspectors")
-def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db), current_user: Users = Depends(require_auth_token)):
+def get_inspectors_under_manager(
+    manager_id: int,
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    # Get all unique inspector IDs under this manager
     sub = (
-        db.query(UserWarehouseMap.User_id)
-        .filter(UserWarehouseMap.Manager_id == manager_id)
+        db.query(CommodityWarehouseMap.InspectorId)
+        .filter(CommodityWarehouseMap.ManagerId == manager_id)
         .distinct()
         .subquery()
     )
+
+    # Fetch the corresponding user records for these inspectors
     rows = db.query(Users).filter(Users.idusers.in_(sub)).all()
+
     return [
         {
             "id": u.idusers,
@@ -205,6 +233,7 @@ def get_inspectors_under_manager(manager_id: int, db: Session = Depends(get_db),
         }
         for u in rows
     ]
+
 
 
 @router.get("/managers/{manager_id}/inspections")
