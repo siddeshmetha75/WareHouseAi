@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from sqlalchemy import and_
-from typing import Optional
+from typing import Optional, List
 import datetime
 from app.schemas.warehousecommodity import (
     WarehouseCommodityCreate,
@@ -36,16 +36,6 @@ def create_warehouse_commodity(
 
 
 # ✅ READ (Get by ID)
-@router.get("/{wc_id}", response_model=WarehouseCommodityResponse)
-def get_warehouse_commodity(
-    wc_id: int,
-    db: Session = Depends(get_db),
-    current_user: Users = Depends(require_auth_token)
-):
-    wc = db.query(WarehouseCommodity).filter(WarehouseCommodity.Idwarehouse_commodity == wc_id).first()
-    if not wc:
-        raise HTTPException(status_code=404, detail="Warehouse Commodity not found")
-    return wc
 
 
 # ✅ UPDATE
@@ -298,7 +288,7 @@ def get_by_inspector_only(
 
     return response
 
-@router.get("/by-inspector-warehouse", response_model=list[WarehouseCommodityResponse])
+@router.get("/by-inspector-and-warehouse", response_model=List[WarehouseCommodityResponse])
 def get_by_inspector_and_warehouse(
     inspector_id: int = Query(..., description="Inspector ID"),
     warehouse_id: int = Query(..., description="Warehouse ID"),
@@ -341,3 +331,14 @@ def get_by_inspector_and_warehouse(
         response.append(item)
 
     return response
+
+@router.get("/{wc_id}", response_model=WarehouseCommodityResponse)
+def get_warehouse_commodity(
+    wc_id: int,
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    wc = db.query(WarehouseCommodity).filter(WarehouseCommodity.Idwarehouse_commodity == wc_id).first()
+    if not wc:
+        raise HTTPException(status_code=404, detail="Warehouse Commodity not found")
+    return wc
