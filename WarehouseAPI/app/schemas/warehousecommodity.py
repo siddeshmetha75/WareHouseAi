@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
+
 # ✅ Base schema (shared attributes)
 class WarehouseCommodityBase(BaseModel):
     CommodityMasterId: int
@@ -35,3 +36,23 @@ class WarehouseCommodityResponse(WarehouseCommodityBase):
     InspectorName: Optional[str] = None  # ✅ Added Inspector name
 
     model_config = ConfigDict(from_attributes=True)
+
+# class WarehouseCommodityResponsee(BaseModel):
+#     Idwarehouse_commodity: int
+#     CommodityMasterId: int
+#     SeasonId: int
+#     WarehouseId: int
+#     Manager_Id: int
+#     InspectorId: int
+#     Insert_Date: Optional[datetime.datetime]
+#     Is_Active: Optional[int]
+
+#     # Joined Names
+#     WarehouseName: Optional[str] = None
+#     CommodityName: Optional[str] = None
+#     SeasonName: Optional[str] = None
+#     ManagerName: Optional[str] = None
+#     InspectorName: Optional[str] = None
+
+#     class Config:
+#         orm_mode = True

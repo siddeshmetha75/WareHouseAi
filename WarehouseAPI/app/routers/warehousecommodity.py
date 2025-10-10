@@ -1,5 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from sqlalchemy import and_
+from typing import Optional
+import datetime
 from app.schemas.warehousecommodity import (
     WarehouseCommodityCreate,
     WarehouseCommodityUpdate,
@@ -166,8 +170,94 @@ def get_by_manager(
 
 
 # ✅ NEW CUSTOM API: Get by InspectorId
+# @router.get("/by-inspector/{inspector_id}", response_model=list[WarehouseCommodityResponse])
+# def get_by_inspector(
+#     inspector_id: int,
+#     db: Session = Depends(get_db),
+#     current_user: Users = Depends(require_auth_token)
+# ):
+#     manager_alias = Users.__table__.alias("manager")
+#     inspector_alias = Users.__table__.alias("inspector")
+
+#     results = (
+#         db.query(
+#             WarehouseCommodity,
+#             Warehouses.Warehouse_Name.label("WarehouseName"),
+#             Commoditymaster.Commodity_Name.label("CommodityName"),
+#             Seasons.Season_Name.label("SeasonName"),
+#             manager_alias.c.Full_Name.label("ManagerName"),
+#             inspector_alias.c.Full_Name.label("InspectorName"),
+#         )
+#         .join(Warehouses, WarehouseCommodity.WarehouseId == Warehouses.Id_Warehouse)
+#         .join(Commoditymaster, WarehouseCommodity.CommodityMasterId == Commoditymaster.IdCommodity)
+#         .join(Seasons, WarehouseCommodity.SeasonId == Seasons.IdSeason)
+#         .join(manager_alias, WarehouseCommodity.Manager_Id == manager_alias.c.idusers)
+#         .join(inspector_alias, WarehouseCommodity.InspectorId == inspector_alias.c.idusers)
+#         .filter(
+#             WarehouseCommodity.InspectorId == inspector_id,
+#             WarehouseCommodity.Is_Active == 1
+#         )
+#         .all()
+#     )
+
+#     response = []
+#     for wc, wname, cname, sname, mname, iname in results:
+#         item = WarehouseCommodityResponse.from_orm(wc)
+#         item.WarehouseName = wname
+#         item.CommodityName = cname
+#         item.SeasonName = sname
+#         item.ManagerName = mname
+#         item.InspectorName = iname
+#         response.append(item)
+
+#     return response
+
 @router.get("/by-inspector/{inspector_id}", response_model=list[WarehouseCommodityResponse])
 def get_by_inspector(
+    inspector_id: int,
+    manager_id: int = Query(..., description="ID of the manager to filter by"),
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    manager_alias = Users.__table__.alias("manager")
+    inspector_alias = Users.__table__.alias("inspector")
+
+    results = (
+        db.query(
+            WarehouseCommodity,
+            Warehouses.Warehouse_Name.label("WarehouseName"),
+            Commoditymaster.Commodity_Name.label("CommodityName"),
+            Seasons.Season_Name.label("SeasonName"),
+            manager_alias.c.Full_Name.label("ManagerName"),
+            inspector_alias.c.Full_Name.label("InspectorName"),
+        )
+        .join(Warehouses, WarehouseCommodity.WarehouseId == Warehouses.Id_Warehouse)
+        .join(Commoditymaster, WarehouseCommodity.CommodityMasterId == Commoditymaster.IdCommodity)
+        .join(Seasons, WarehouseCommodity.SeasonId == Seasons.IdSeason)
+        .join(manager_alias, WarehouseCommodity.Manager_Id == manager_alias.c.idusers)
+        .join(inspector_alias, WarehouseCommodity.InspectorId == inspector_alias.c.idusers)
+        .filter(
+            WarehouseCommodity.InspectorId == inspector_id,
+            WarehouseCommodity.Manager_Id == manager_id,
+            WarehouseCommodity.Is_Active == 1
+        )
+        .all()
+    )
+
+    response = []
+    for wc, wname, cname, sname, mname, iname in results:
+        item = WarehouseCommodityResponse.from_orm(wc)
+        item.WarehouseName = wname
+        item.CommodityName = cname
+        item.SeasonName = sname
+        item.ManagerName = mname
+        item.InspectorName = iname
+        response.append(item)
+
+    return response
+    
+@router.get("/by-inspector-only/{inspector_id}", response_model=list[WarehouseCommodityResponse])
+def get_by_inspector_only(
     inspector_id: int,
     db: Session = Depends(get_db),
     current_user: Users = Depends(require_auth_token)
@@ -191,6 +281,50 @@ def get_by_inspector(
         .join(inspector_alias, WarehouseCommodity.InspectorId == inspector_alias.c.idusers)
         .filter(
             WarehouseCommodity.InspectorId == inspector_id,
+            WarehouseCommodity.Is_Active == 1
+        )
+        .all()
+    )
+
+    response = []
+    for wc, wname, cname, sname, mname, iname in results:
+        item = WarehouseCommodityResponse.from_orm(wc)
+        item.WarehouseName = wname
+        item.CommodityName = cname
+        item.SeasonName = sname
+        item.ManagerName = mname
+        item.InspectorName = iname
+        response.append(item)
+
+    return response
+
+@router.get("/by-inspector-warehouse", response_model=list[WarehouseCommodityResponse])
+def get_by_inspector_and_warehouse(
+    inspector_id: int = Query(..., description="Inspector ID"),
+    warehouse_id: int = Query(..., description="Warehouse ID"),
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(require_auth_token)
+):
+    manager_alias = Users.__table__.alias("manager")
+    inspector_alias = Users.__table__.alias("inspector")
+
+    results = (
+        db.query(
+            WarehouseCommodity,
+            Warehouses.Warehouse_Name.label("WarehouseName"),
+            Commoditymaster.Commodity_Name.label("CommodityName"),
+            Seasons.Season_Name.label("SeasonName"),
+            manager_alias.c.Full_Name.label("ManagerName"),
+            inspector_alias.c.Full_Name.label("InspectorName"),
+        )
+        .join(Warehouses, WarehouseCommodity.WarehouseId == Warehouses.Id_Warehouse)
+        .join(Commoditymaster, WarehouseCommodity.CommodityMasterId == Commoditymaster.IdCommodity)
+        .join(Seasons, WarehouseCommodity.SeasonId == Seasons.IdSeason)
+        .join(manager_alias, WarehouseCommodity.Manager_Id == manager_alias.c.idusers)
+        .join(inspector_alias, WarehouseCommodity.InspectorId == inspector_alias.c.idusers)
+        .filter(
+            WarehouseCommodity.InspectorId == inspector_id,
+            WarehouseCommodity.WarehouseId == warehouse_id,
             WarehouseCommodity.Is_Active == 1
         )
         .all()
