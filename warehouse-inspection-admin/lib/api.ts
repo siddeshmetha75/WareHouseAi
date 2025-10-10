@@ -80,109 +80,88 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     }
   }
 }
-
-export async function fetchInspectorWarehouses(inspectorId: number): Promise<ApiWarehouse[]> {
+export async function fetchInspectorWarehousesWithCommodities(inspectorId: number): Promise<{ warehouse: ApiWarehouse; commodities: string[] }[]> {
   try {
-    console.log('Fetching warehouses for inspector ID:', inspectorId)
+    console.log('Fetching warehouses with commodities for inspector ID:', inspectorId)
 
-    // Try to get warehouses directly assigned to inspector via user-warehouse mapping
-    const userWarehouseMaps = await getUserWarehouseMaps()
-    console.log('User warehouse maps:', userWarehouseMaps)
+    // Get warehouse-commodity mappings for this inspector
+    const mappingsResponse = await api.get<ApiWarehouseCommodity[]>(`/warehousecommodity/by-inspector-only/${inspectorId}`)
 
-    const inspectorMappings = userWarehouseMaps.filter(mapping => mapping.User_id === inspectorId)
-    console.log('Inspector mappings found:', inspectorMappings.length)
-
-    if (inspectorMappings.length > 0) {
-      const warehouseIds = inspectorMappings.map(mapping => mapping.Warehouse_id)
-      console.log('Warehouse IDs from user mappings:', warehouseIds)
-
-      // Get all warehouses and filter by IDs instead of calling getWarehouse individually
-      const allWarehouses = await getWarehouses()
-      const warehouses = allWarehouses.filter(warehouse =>
-        warehouseIds.includes(warehouse.Id_Warehouse)
-      )
-      console.log('Warehouses from user mappings:', warehouses)
-      return warehouses
+    if (!mappingsResponse.data || mappingsResponse.data.length === 0) {
+      console.log('No warehouse-commodity mappings found for inspector')
+      return []
     }
 
-    // Fallback: Get warehouses through commodity-warehouse mappings
-    const mappings = await getAllCommodityWarehouseMaps()
-    console.log('All commodity warehouse mappings:', mappings)
+    // Group mappings by warehouse ID
+    const warehouseMap = new Map<number, ApiWarehouseCommodity[]>()
 
-    const inspectorMappings2 = mappings.filter(mapping => mapping.InspectorId === inspectorId)
-    console.log('Inspector commodity mappings found:', inspectorMappings2.length)
+    mappingsResponse.data.forEach((mapping: any) => {
+      const warehouseId = mapping.WarehouseId
+      if (!warehouseMap.has(warehouseId)) {
+        warehouseMap.set(warehouseId, [])
+      }
+      warehouseMap.get(warehouseId)!.push(mapping)
+    })
 
-    const warehouseIds2 = [...new Set(inspectorMappings2.map(mapping => mapping.WarehouseId))]
-    console.log('Warehouse IDs from commodity mappings:', warehouseIds2)
-
-    if (warehouseIds2.length === 0) {
-      console.log('No warehouses found for inspector ID:', inspectorId)
-      return [] // No warehouses assigned to this inspector
+    if (warehouseMap.size === 0) {
+      console.log('No warehouses found in mappings')
+      return []
     }
 
-    // Get all warehouses and filter by IDs
-    const allWarehouses2 = await getWarehouses()
-    const warehouses2 = allWarehouses2.filter(warehouse =>
-      warehouseIds2.includes(warehouse.Id_Warehouse)
+    // Get warehouse details for these IDs
+    const warehouseIds = Array.from(warehouseMap.keys())
+    const allWarehouses = await getWarehouses()
+    const warehouses = allWarehouses.filter((warehouse: any) =>
+      warehouseIds.includes(warehouse.Id_Warehouse)
     )
-    console.log('Warehouses from commodity mappings:', warehouses2)
 
-    return warehouses2
+    // Combine warehouse data with commodity information
+    const result = warehouses.map((warehouse: any) => {
+      const mappings = warehouseMap.get(warehouse.Id_Warehouse) || []
+      const commodities = mappings.map((mapping: any) => mapping.CommodityName)
+
+      return {
+        warehouse,
+        commodities: [...new Set(commodities)] // Remove duplicates
+      }
+    })
+
+    console.log('Found warehouses with commodities:', result)
+    return result
   } catch (error) {
-    console.error('Error fetching inspector warehouses:', error)
+    console.error('Error fetching inspector warehouses with commodities:', error)
     throw new Error('Failed to load assigned warehouses')
   }
 }
-
-// Questions / Inspections
-export interface ApiQuestion {
+export interface EvidenceUploadResponse {
   id: number
-  text: string
-  category?: string | null
-  risk_weight?: number | null
+  file_url: string
+  file_type: string
+  question_id: number
+  inspection_id: number
 }
 
-export async function getQuestions(): Promise<ApiQuestion[]> {
-  const { data } = await api.get<ApiQuestion[]>("/api/questions")
-  // Map backend field text_ -> text if necessary
-  return data.map((q: any) => ({ id: q.id, text: q.text ?? q.text_ ?? "", category: q.category, risk_weight: q.risk_weight }))
-}
+export async function fetchInspectorWarehouseCommoditiesByWarehouse(inspectorId: number, warehouseId: number): Promise<ApiWarehouseCommodity[]> {
+  try {
+    console.log('Fetching warehouse-commodity mappings for inspector ID:', inspectorId, 'and warehouse ID:', warehouseId)
 
-export async function createInspectionWithAnswers(payload: {
-  warehouse_id: number
-  commodity_id: number
-  inspector_id: number
-  Season_Id?: number
-  answers: Array<{ question_id: number; answer?: string; remarks?: string }>
-}): Promise<{ inspection_id: number; saved_answers: number }> {
-  // Map to backend-expected PascalCase keys
-  const mapped = {
-    // PascalCase
-    WarehouseId: payload.warehouse_id,
-    CommodityId: payload.commodity_id,
-    InspectorId: payload.inspector_id,
-    ...(payload.Season_Id ? { Season_Id: payload.Season_Id, SeasonId: payload.Season_Id } : {}),
-    Answers: payload.answers.map((a) => ({
-      Question_Id: a.question_id,
-      Answer: a.answer ?? "",
-      Remarks: a.remarks ?? "",
-    })),
-    // snake_case duplicates for compatibility
-    warehouse_id: payload.warehouse_id,
-    commodity_id: payload.commodity_id,
-    inspector_id: payload.inspector_id,
-    ...(payload.Season_Id ? { season_id: payload.Season_Id } : {}),
-    answers: payload.answers.map((a) => ({
-      question_id: a.question_id,
-      answer: a.answer ?? "",
-      remarks: a.remarks ?? "",
-    })),
-  }
-  const { data } = await api.post(`/api/inspections`, mapped)
-  // Normalize to expected shape
-  return {
-    inspection_id: data?.inspection_id ?? data?.Id_Inspections ?? data?.id,
-    saved_answers: data?.saved_answers ?? payload.answers.length,
+    const params = {
+      inspector_id: inspectorId,
+      warehouse_id: warehouseId
+    }
+
+    const response = await api.get<ApiWarehouseCommodity[]>(`/warehousecommodity/by-inspector-and-warehouse`, { params })
+
+    if (!response.data) {
+      console.log('No warehouse-commodity mappings found for inspector and warehouse')
+      return []
+    }
+
+    console.log('Found warehouse-commodity mappings:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('Error fetching inspector warehouse-commodity mappings for warehouse:', error)
+    throw new Error('Failed to load warehouse-commodity assignments')
   }
 }
 
@@ -200,16 +179,17 @@ export async function uploadEvidence(inspectionId: number, file: File, questionI
   formData.append("questionId", questionId.toString())
   formData.append("QuestionId", questionId.toString())
   formData.append("question_id", questionId.toString())
-  
+  formData.append("inspectionId", inspectionId.toString())
+
   // Provide file_type if backend validates it
   if (file.type) formData.append("file_type", file.type)
-  
+
   const { data } = await api.post(`/api/inspections/${inspectionId}/evidence`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   })
-  
+
   return data
 }
 
@@ -219,6 +199,96 @@ export async function deleteEvidence(inspectionId: number, evidenceId: number): 
   } catch (error) {
     console.error('Failed to delete evidence:', error)
     throw new Error('Failed to delete evidence. Please try again.')
+  }
+}
+
+// Questions for inspection forms
+export interface ApiQuestion {
+  id: number
+  text: string
+  category?: string | null
+  risk_weight?: number | null
+  question_type?: string
+  is_active?: number
+  created_at?: string
+}
+
+export async function getQuestions(): Promise<ApiQuestion[]> {
+  try {
+    console.log('Fetching inspection questions')
+    const { data } = await api.get<ApiQuestion[]>('/api/questions')
+    console.log('Fetched questions:', data)
+    return data || []
+  } catch (error) {
+    console.error('Error fetching questions:', error)
+    throw new Error('Failed to load inspection questions')
+  }
+}
+
+export async function createInspectionWithAnswers(payload: {
+  warehouse_id: number
+  commodity_id: number
+  inspector_id: number
+  Season_Id: number
+  answers: Array<{
+    question_id: number
+    answer: string
+    remarks?: string
+  }>
+}): Promise<{ inspection_id: number }> {
+  try {
+    console.log('Creating inspection with answers:', payload)
+
+    // First ensure the inspector-warehouse mapping exists
+    // This is required by the backend for creating inspections
+    await ensureInspectorWarehouseMapping(payload.inspector_id, payload.warehouse_id)
+
+    const { data } = await api.post('/api/inspections', payload)
+    console.log('Created inspection:', data)
+    return data
+  } catch (error) {
+    console.error('Error creating inspection:', error)
+    throw new Error('Failed to create inspection')
+  }
+}
+
+export async function ensureInspectorWarehouseMapping(inspectorId: number, warehouseId: number): Promise<void> {
+  try {
+    console.log('Ensuring inspector-warehouse mapping exists for inspector:', inspectorId, 'warehouse:', warehouseId)
+
+    // Check if mapping already exists
+    const existingMappings = await getUserWarehouseMaps()
+    const mappingExists = existingMappings.some(
+      m => m.User_id === inspectorId && m.Warehouse_id === warehouseId
+    )
+
+    if (mappingExists) {
+      console.log('Mapping already exists')
+      return
+    }
+
+    // If no mapping exists, create one
+    // We need to find an available manager for this warehouse
+    const managers = await getUsers({ role: 'Manager' })
+
+    if (managers.length === 0) {
+      throw new Error('No managers found to assign this inspection')
+    }
+
+    // For now, assign to the first available manager
+    // In a real application, you might want more sophisticated logic
+    const managerId = managers[0].idusers
+
+    await createUserWarehouseMap({
+      User_id: inspectorId,
+      Warehouse_id: warehouseId,
+      Manager_id: managerId
+    })
+
+    console.log('Created inspector-warehouse mapping')
+  } catch (error) {
+    console.error('Error ensuring inspector-warehouse mapping:', error)
+    // Don't throw here - let the inspection creation handle the error if needed
   }
 }
 
@@ -235,10 +305,10 @@ export interface ApiCommodityWarehouseMap {
   SeasonName: string
 }
 
-export async function getCommodityWarehouseMappings(warehouseId: number, inspectorId: number): Promise<ApiCommodityWarehouseMap[]> {
-  const { data } = await api.get<ApiCommodityWarehouseMap[]>(
-    "/commodity-warehouse-map/filter/by-warehouse-inspector",
-    { params: { warehouseId, inspectorId } }
+export async function getCommodityWarehouseMappings(warehouseId: number, inspectorId: number): Promise<ApiWarehouseCommodity[]> {
+  const { data } = await api.get<ApiWarehouseCommodity[]>(
+    "/warehousecommodity/by-inspector-and-warehouse",
+    { params: { inspector_id: inspectorId, warehouse_id: warehouseId } }
   )
   return data
 }
@@ -675,11 +745,6 @@ export async function getWarehousesByManager(managerId: number): Promise<ApiWare
   return data
 }
 
-export async function createWarehouseCommodity(payload: CreateWarehouseCommodityPayload): Promise<ApiWarehouseCommodity> {
-  const { data } = await api.post<ApiWarehouseCommodity>('/warehousecommodity/', payload)
-  return data
-}
-
 export async function getWarehouseCommoditiesByManager(managerId: number): Promise<ApiWarehouseCommodity[]> {
   const { data } = await api.get<ApiWarehouseCommodity[]>(`/warehousecommodity/by-manager/${managerId}`)
   return data
@@ -690,38 +755,7 @@ export async function updateWarehouseCommodity(wcId: number, payload: Partial<Cr
   return data
 }
 
-export interface CreateCommodityWarehouseMapPayload {
-  WarehouseId: number
-  ManagerId: number
-  CommodityId: number
-  SeasonId: number
-  Is_Active?: number
-}
-
-// Commodity-Warehouse Map CRUD (manager-inspector mapping with commodity & season)
-export interface ApiCommodityWarehouseMapAll {
-  Id_CommodityWarehouseMap: number
-  WarehouseId: number
-  ManagerId: number
-  InspectorId: number
-  CommodityId: number
-  SeasonId: number
-  Is_Active: number | null
-}
-
-export async function getAllCommodityWarehouseMaps(): Promise<ApiCommodityWarehouseMapAll[]> {
-  const { data } = await api.get<ApiCommodityWarehouseMapAll[]>(`/commodity-warehouse-map/`)
-  return data
-}
-
-export async function deleteCommodityWarehouseMap(id: number): Promise<void> {
-  await api.delete(`/commodity-warehouse-map/${id}`)
-}
-
-export async function updateCommodityWarehouseMap(
-  id: number,
-  payload: Partial<CreateCommodityWarehouseMapPayload>
-): Promise<ApiCommodityWarehouseMapAll> {
-  const { data } = await api.put<ApiCommodityWarehouseMapAll>(`/commodity-warehouse-map/${id}`, payload)
+export async function createWarehouseCommodity(payload: CreateWarehouseCommodityPayload): Promise<ApiWarehouseCommodity> {
+  const { data } = await api.post<ApiWarehouseCommodity>('/warehousecommodity/', payload)
   return data
 }

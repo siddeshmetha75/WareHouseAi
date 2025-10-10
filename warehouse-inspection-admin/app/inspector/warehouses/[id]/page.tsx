@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getCommodityWarehouseMappings, type ApiCommodityWarehouseMap } from "@/lib/api"
+import { getCommodityWarehouseMappings, type ApiWarehouseCommodity } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -12,7 +12,7 @@ export default function WarehouseDetailPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [warehouseName, setWarehouseName] = useState<string>("")
-  const [mappings, setMappings] = useState<ApiCommodityWarehouseMap[]>([])
+  const [mappings, setMappings] = useState<ApiWarehouseCommodity[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>("")
 
@@ -52,9 +52,9 @@ export default function WarehouseDetailPage() {
     loadMappings()
   }, [id, user?.id])
 
-  const handleSelectMapping = (map: ApiCommodityWarehouseMap) => {
+  const handleSelectMapping = (map: ApiWarehouseCommodity) => {
     // Navigate directly to inspect page with commodity and season
-    router.push(`/inspector/warehouses/${id}/inspect/${map.CommodityId}?season=${map.SeasonId}`)
+    router.push(`/inspector/warehouses/${id}/inspect/${map.CommodityMasterId}?season=${map.SeasonId}`)
   }
 
   return (
@@ -78,7 +78,7 @@ export default function WarehouseDetailPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {mappings.map((m) => (
                   <button
-                    key={m.Id_CommodityWarehouseMap}
+                    key={m.Idwarehouse_commodity}
                     type="button"
                     onClick={() => handleSelectMapping(m)}
                     className="border rounded-lg p-4 text-left hover:shadow-md hover:border-blue-300 transition-colors"

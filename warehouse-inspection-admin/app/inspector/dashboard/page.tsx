@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { fetchInspectorWarehouses } from "@/lib/api"
+import { fetchInspectorWarehousesWithCommodities } from "@/lib/api"
 import type { Warehouse } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardContent } from "@/components/ui/modern-card"
 import { ShimmerCard } from "@/components/ui/shimmer"
-import { Warehouse as WarehouseIcon, MapPin, Package, Navigation } from "lucide-react"
+import { Warehouse as WarehouseIcon, MapPin, Package, Navigation, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,17 +48,17 @@ export default function InspectorDashboardPage() {
         return []
       }
 
-      console.log('Fetching warehouses for inspector ID:', user.id)
-      const apiWarehouses = await fetchInspectorWarehouses(user.id)
+      console.log('Fetching warehouses with commodities for inspector ID:', user.id)
+      const warehouseData = await fetchInspectorWarehousesWithCommodities(user.id)
 
-      console.log('API returned warehouses:', apiWarehouses)
+      console.log('API returned warehouse data:', warehouseData)
 
-      const mapped: Warehouse[] = apiWarehouses.map((w: any) => ({
-        id: w.Id_Warehouse,
-        name: w.Warehouse_Name,
-        location: `${w.Latitude ?? 0},${w.Longitude ?? 0}`,
-        address: w.Location ?? "",
-        capacityTons: w.Capacity ?? 0,
+      const mapped: Warehouse[] = warehouseData.map((item: any) => ({
+        id: item.warehouse.Id_Warehouse,
+        name: item.warehouse.Warehouse_Name,
+        location: `${item.warehouse.Latitude ?? 0},${item.warehouse.Longitude ?? 0}`,
+        address: item.warehouse.Location ?? "",
+        capacityTons: item.warehouse.Capacity ?? 0,
         currentStockTons: 0,
         isActive: true,
         createdAt: "",
