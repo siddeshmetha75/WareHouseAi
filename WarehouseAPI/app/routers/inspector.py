@@ -67,7 +67,7 @@ def create_inspection(
     mapping = (
         db.query(UserWarehouseMap)
         .filter(
-            UserWarehouseMap.User_id == payload.inspector_id,
+            #UserWarehouseMap.User_id == payload.inspector_id,
             UserWarehouseMap.Warehouse_id == payload.warehouse_id,
         )
         .first()
