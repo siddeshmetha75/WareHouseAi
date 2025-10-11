@@ -88,12 +88,12 @@ const navigation = [
     icon: Warehouse,
     roles: ["Admin"],
   },
-  {
-    name: "Warehouse-Commodity",
-    href: "/admin/warehouse-commodity",
-    icon: Layers,
-    roles: ["Admin"],
-  },
+  // {
+  //   name: "Warehouse-Commodity",
+  //   href: "/admin/warehouse-commodity",
+  //   icon: Layers,
+  //   roles: ["Admin"],
+  // },
   // {
   //   name: "Reports",
   //   href: "/reports",
