@@ -11,8 +11,8 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute requiredRoles={["Admin", "Manager"]} unauthorizedPath="/inspector/dashboard">
       <div className="flex min-h-screen bg-gray-50">
-        <div className="hidden md:flex md:w-64 md:flex-col">
-          <div className="flex flex-col flex-grow pt-5 overflow-y-auto bg-blue-700 border-r">
+        <div className="hidden md:flex md:w-64 md:flex-col md:sticky md:top-0 md:h-screen">
+          <div className="flex flex-col flex-grow pt-5 bg-blue-700 border-r">
             <Sidebar />
           </div>
         </div>
